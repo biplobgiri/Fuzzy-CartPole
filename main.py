@@ -8,7 +8,7 @@ from rk4 import rk4
 from visualize import CartPoleVisualizer
 
 
-def plot_graph(time, force, cart_positions, pole_angles, show_img=False):
+def plot_graph(time, force, cart_positions, pole_angles,filename, show_img=False):
     fig, axs = plt.subplots(3, 1, figsize=(8, 10), sharex=True)
 
     # Plot Force
@@ -37,7 +37,7 @@ def plot_graph(time, force, cart_positions, pole_angles, show_img=False):
     axs[2].yaxis.set_major_locator(MaxNLocator(nbins=10))
 
     plt.tight_layout()
-    plt.savefig("Images/cartpole_three_plots.png", dpi=600)
+    plt.savefig(f"Images/{filename}", dpi=600)
     if show_img:
         plt.show()
 
@@ -55,19 +55,19 @@ if __name__ == "__main__":
 
     ''' states : x_dot, x, w_dot, w'''
     states = np.empty((4, len(time)))
-    states[:,0] = [ 0.0,0.0,0.0,1.0]        # Intial State
+    states[:,0] = [ 0.0,0.0,0.0,0.0]        # Intial State
 
     cartople_ = cartople(cart_mass, pole_mass, pole_length)
 
     force = np.zeros(len(time))
     i = 0
     t = 0
-    # while True:
-    #     force[i] = -1.0
-    #     t = t+ dt
-    #     i = i + 1
-    #     if t >= 1:
-    #         break
+    while True:
+        force[i] = 1.0
+        t = t+ dt
+        i = i + 1
+        if t >= 1:
+            break
 
     # force[0] = 1.0
         
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     pole_angles = states[3,:]
    
     print("Pole Angle:", pole_angles)
-    plot_graph(time, force, cart_positions, pole_angles)
+    plot_graph(time, force, cart_positions, pole_angles, filename="cartpole_step_test(2).png")
 
      
     visualizer = CartPoleVisualizer()
