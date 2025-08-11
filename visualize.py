@@ -11,6 +11,9 @@ class CartPoleVisualizer:
         self.screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption("CartPole Visualizer")
         
+        # Day/Night toggle
+        self.is_night = False
+        
         # Colors
         self.BLACK = (0, 0, 0)
         self.WHITE = (255, 255, 255)
@@ -23,6 +26,13 @@ class CartPoleVisualizer:
         self.LIGHT_GRAY = (211, 211, 211)  # Light gray
         self.DARK_GRAY = (105, 105, 105)   # Dim gray
         self.YELLOW = (255, 255, 0)        # Sun yellow
+        
+        # Night colors
+        self.NIGHT_SKY = (25, 25, 112)     # Midnight blue
+        self.MOON_COLOR = (245, 245, 220)   # Beige
+        self.STAR_COLOR = (255, 255, 255)   # White
+        self.NIGHT_CLOUD = (70, 70, 70)     # Dark gray
+        self.NIGHT_GRASS = (0, 80, 0)       # Dark green
         
         # Physical dimensions in meters
         self.pole_length_meters = pole_length_meters
@@ -45,14 +55,43 @@ class CartPoleVisualizer:
         self.clock = pygame.time.Clock()
         self.fps = 60
         
+        # Sun/Moon position and radius for click detection
+        self.celestial_x = self.width - 100
+        self.celestial_y = 80
+        self.celestial_radius = 35
+        
+        # Generate random star positions (fixed for consistency)
+        self.stars = []
+        np.random.seed(42)  # Fixed seed for consistent star positions
+        for _ in range(50):
+            star_x = np.random.randint(0, self.width)
+            star_y = np.random.randint(0, self.height // 2)
+            self.stars.append((star_x, star_y))
+    
     def world_to_screen(self, x_pos):
         """Convert world coordinates to screen coordinates"""
         screen_x = self.width // 2 + x_pos * self.scale
         return screen_x
     
+    def is_point_in_circle(self, point_x, point_y, circle_x, circle_y, radius):
+        """Check if a point is inside a circle"""
+        distance = math.sqrt((point_x - circle_x)**2 + (point_y - circle_y)**2)
+        return distance <= radius
+    
+    def handle_celestial_click(self, mouse_pos):
+        """Handle clicks on sun/moon to toggle day/night"""
+        mouse_x, mouse_y = mouse_pos
+        if self.is_point_in_circle(mouse_x, mouse_y, self.celestial_x, self.celestial_y, self.celestial_radius + 10):
+            self.is_night = not self.is_night
+            return True
+        return False
+    
     def draw_cart(self, x_pos):
         """Draw the cart at given position with enhanced details"""
         screen_x = self.world_to_screen(x_pos)
+        
+        # Adjust cart color slightly for night visibility
+        cart_color = (0, 80, 200) if self.is_night else self.BLUE
         
         # Main cart body with 3D effect
         cart_rect = pygame.Rect(
@@ -61,23 +100,26 @@ class CartPoleVisualizer:
             self.cart_width,
             self.cart_height
         )
-        pygame.draw.rect(self.screen, self.BLUE, cart_rect)
+        pygame.draw.rect(self.screen, cart_color, cart_rect)
         
         # 3D highlights and shadows
+        highlight_color = (120, 120, 255) if not self.is_night else (100, 100, 220)
+        shadow_color = (0, 50, 150) if not self.is_night else (0, 30, 120)
+        
         # Top highlight
-        pygame.draw.line(self.screen, (150, 150, 255), 
+        pygame.draw.line(self.screen, highlight_color, 
                         (cart_rect.left, cart_rect.top), 
                         (cart_rect.right, cart_rect.top), 3)
         # Left highlight
-        pygame.draw.line(self.screen, (120, 120, 255), 
+        pygame.draw.line(self.screen, highlight_color, 
                         (cart_rect.left, cart_rect.top), 
                         (cart_rect.left, cart_rect.bottom), 2)
         # Bottom shadow
-        pygame.draw.line(self.screen, (0, 50, 150), 
+        pygame.draw.line(self.screen, shadow_color, 
                         (cart_rect.left, cart_rect.bottom), 
                         (cart_rect.right, cart_rect.bottom), 2)
         # Right shadow
-        pygame.draw.line(self.screen, (0, 50, 150), 
+        pygame.draw.line(self.screen, shadow_color, 
                         (cart_rect.right, cart_rect.top), 
                         (cart_rect.right, cart_rect.bottom), 2)
         
@@ -142,7 +184,11 @@ class CartPoleVisualizer:
             seg_end_y = cart_y - self.pole_length * seg_end_ratio * math.cos(angle)
             
             # Alternate segment colors for mechanical look
-            color = (200, 50, 50) if i % 2 == 0 else (150, 30, 30)
+            if self.is_night:
+                color = (150, 40, 40) if i % 2 == 0 else (120, 25, 25)
+            else:
+                color = (200, 50, 50) if i % 2 == 0 else (150, 30, 30)
+            
             pygame.draw.line(self.screen, color,
                            (seg_start_x, seg_start_y), (seg_end_x, seg_end_y), 
                            self.pole_width)
@@ -181,38 +227,87 @@ class CartPoleVisualizer:
             end_size,
             end_size
         )
-        pygame.draw.rect(self.screen, (180, 40, 40), end_rect)
+        end_color = (130, 30, 30) if self.is_night else (180, 40, 40)
+        pygame.draw.rect(self.screen, end_color, end_rect)
         pygame.draw.rect(self.screen, self.BLACK, end_rect, 1)
     
+    def draw_stars(self):
+        """Draw twinkling stars in the night sky"""
+        import time
+        current_time = time.time()
+        
+        for i, (star_x, star_y) in enumerate(self.stars):
+            # Make stars twinkle by varying their brightness
+            twinkle_phase = (current_time * 2 + i) % (2 * math.pi)
+            brightness = int(200 + 55 * math.sin(twinkle_phase))
+            star_color = (brightness, brightness, brightness)
+            
+            # Vary star sizes slightly
+            star_size = 1 + int(0.5 * math.sin(twinkle_phase + i))
+            pygame.draw.circle(self.screen, star_color, (star_x, star_y), star_size)
+    
     def draw_background(self):
-        """Draw an interesting background with sky, clouds, and sun"""
-        # Sky gradient (simple approach - fill with sky blue)
-        self.screen.fill(self.LIGHT_BLUE)
-        
-        # Draw sun
-        sun_x, sun_y = self.width - 100, 80
-        pygame.draw.circle(self.screen, self.YELLOW, (sun_x, sun_y), 35)
-        pygame.draw.circle(self.screen, (255, 255, 150), (sun_x, sun_y), 25)  # Bright center
-        
-        # Draw sun rays
-        for i in range(8):
-            angle = i * math.pi / 4
-            ray_start_x = sun_x + 45 * math.cos(angle)
-            ray_start_y = sun_y + 45 * math.sin(angle)
-            ray_end_x = sun_x + 60 * math.cos(angle)
-            ray_end_y = sun_y + 60 * math.sin(angle)
-            pygame.draw.line(self.screen, self.YELLOW, 
-                           (ray_start_x, ray_start_y), (ray_end_x, ray_end_y), 3)
-        
-        # Draw clouds
-        cloud_positions = [(150, 100), (400, 80), (600, 120)]
-        for cloud_x, cloud_y in cloud_positions:
-            # Each cloud made of multiple circles
-            pygame.draw.circle(self.screen, self.WHITE, (cloud_x, cloud_y), 25)
-            pygame.draw.circle(self.screen, self.WHITE, (cloud_x + 20, cloud_y), 20)
-            pygame.draw.circle(self.screen, self.WHITE, (cloud_x - 20, cloud_y), 20)
-            pygame.draw.circle(self.screen, self.WHITE, (cloud_x + 10, cloud_y - 15), 18)
-            pygame.draw.circle(self.screen, self.WHITE, (cloud_x - 10, cloud_y - 15), 18)
+        """Draw background with day/night themes"""
+        if self.is_night:
+            # Night sky
+            self.screen.fill(self.NIGHT_SKY)
+            
+            # Draw stars
+            self.draw_stars()
+            
+            # Draw moon
+            pygame.draw.circle(self.screen, self.MOON_COLOR, (self.celestial_x, self.celestial_y), self.celestial_radius)
+            pygame.draw.circle(self.screen, (220, 220, 200), (self.celestial_x, self.celestial_y), self.celestial_radius - 8)
+            
+            # Moon craters
+            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x - 8, self.celestial_y - 5), 4)
+            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x + 6, self.celestial_y + 8), 3)
+            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x + 3, self.celestial_y - 10), 2)
+            
+            # Moon glow
+            for radius in range(self.celestial_radius + 5, self.celestial_radius + 20, 2):
+                alpha = max(0, 30 - (radius - self.celestial_radius) * 2)
+                glow_surface = pygame.Surface((radius * 2, radius * 2))
+                glow_surface.set_alpha(alpha)
+                pygame.draw.circle(glow_surface, (200, 200, 255), (radius, radius), radius)
+                self.screen.blit(glow_surface, (self.celestial_x - radius, self.celestial_y - radius))
+            
+            # Night clouds
+            cloud_positions = [(150, 100), (400, 80), (600, 120)]
+            for cloud_x, cloud_y in cloud_positions:
+                # Each cloud made of multiple circles
+                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x, cloud_y), 25)
+                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x + 20, cloud_y), 20)
+                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x - 20, cloud_y), 20)
+                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x + 10, cloud_y - 15), 18)
+                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x - 10, cloud_y - 15), 18)
+        else:
+            # Day sky
+            self.screen.fill(self.LIGHT_BLUE)
+            
+            # Draw sun
+            pygame.draw.circle(self.screen, self.YELLOW, (self.celestial_x, self.celestial_y), self.celestial_radius)
+            pygame.draw.circle(self.screen, (255, 255, 150), (self.celestial_x, self.celestial_y), 25)
+            
+            # Draw sun rays
+            for i in range(8):
+                angle = i * math.pi / 4
+                ray_start_x = self.celestial_x + 45 * math.cos(angle)
+                ray_start_y = self.celestial_y + 45 * math.sin(angle)
+                ray_end_x = self.celestial_x + 60 * math.cos(angle)
+                ray_end_y = self.celestial_y + 60 * math.sin(angle)
+                pygame.draw.line(self.screen, self.YELLOW, 
+                               (ray_start_x, ray_start_y), (ray_end_x, ray_end_y), 3)
+            
+            # Day clouds
+            cloud_positions = [(150, 100), (400, 80), (600, 120)]
+            for cloud_x, cloud_y in cloud_positions:
+                # Each cloud made of multiple circles
+                pygame.draw.circle(self.screen, self.WHITE, (cloud_x, cloud_y), 25)
+                pygame.draw.circle(self.screen, self.WHITE, (cloud_x + 20, cloud_y), 20)
+                pygame.draw.circle(self.screen, self.WHITE, (cloud_x - 20, cloud_y), 20)
+                pygame.draw.circle(self.screen, self.WHITE, (cloud_x + 10, cloud_y - 15), 18)
+                pygame.draw.circle(self.screen, self.WHITE, (cloud_x - 10, cloud_y - 15), 18)
     
     def draw_ground(self):
         """Draw an interesting ground surface with grass texture"""
@@ -221,21 +316,23 @@ class CartPoleVisualizer:
         pygame.draw.rect(self.screen, self.BROWN, underground_rect)
         
         # Ground surface line (main track)
-        pygame.draw.line(self.screen, self.DARK_GRAY, 
+        track_color = (100, 100, 100) if self.is_night else self.DARK_GRAY
+        pygame.draw.line(self.screen, track_color, 
                         (0, self.ground_y), 
                         (self.width, self.ground_y), 4)
         
         # Track markings every 100 pixels (1 meter)
+        marking_color = (200, 200, 200) if self.is_night else self.WHITE
         for x in range(0, self.width, 100):
             # Major tick marks every meter
-            pygame.draw.line(self.screen, self.WHITE, 
+            pygame.draw.line(self.screen, marking_color, 
                            (x, self.ground_y - 5), (x, self.ground_y + 5), 2)
             
             # Distance labels (in meters relative to center)
             if x != self.width // 2:  # Don't draw at center
                 distance = (x - self.width // 2) / self.scale
                 font = pygame.font.Font(None, 24)
-                text = font.render(f"{distance:.0f}m", True, self.WHITE)
+                text = font.render(f"{distance:.0f}m", True, marking_color)
                 text_rect = text.get_rect()
                 text_rect.centerx = x
                 text_rect.y = self.ground_y + 10
@@ -243,50 +340,61 @@ class CartPoleVisualizer:
         
         # Center line (zero position)
         center_x = self.width // 2
-        pygame.draw.line(self.screen, (255, 255, 0), 
+        center_color = (255, 255, 100) if self.is_night else (255, 255, 0)
+        pygame.draw.line(self.screen, center_color, 
                         (center_x, self.ground_y - 8), (center_x, self.ground_y + 8), 3)
         
         # Grass texture above ground
         grass_y = self.ground_y - 15
+        grass_color = self.NIGHT_GRASS if self.is_night else self.DARK_GREEN
+        grass_tip_color = (0, 120, 0) if self.is_night else (50, 200, 50)
+        
         for x in range(0, self.width, 8):
             # Random grass blade heights
             blade_height = 10 + (hash(x) % 8)
-            pygame.draw.line(self.screen, self.DARK_GREEN, 
+            pygame.draw.line(self.screen, grass_color, 
                            (x, grass_y), (x, grass_y + blade_height), 2)
             # Lighter grass tips
             if blade_height > 12:
-                pygame.draw.line(self.screen, (50, 200, 50), 
+                pygame.draw.line(self.screen, grass_tip_color, 
                                (x, grass_y), (x, grass_y + 4), 1)
     
     def draw_info(self, current_time, total_time, cart_pos, pole_angle):
         """Draw information text with enhanced styling"""
         # Semi-transparent background for text
-        info_surface = pygame.Surface((300, 140))
+        info_surface = pygame.Surface((300, 160))
         info_surface.set_alpha(200)
-        info_surface.fill((0, 0, 0))
+        bg_color = (0, 0, 50) if self.is_night else (0, 0, 0)
+        info_surface.fill(bg_color)
         self.screen.blit(info_surface, (5, 5))
         
         font = pygame.font.Font(None, 36)
+        text_color = (200, 200, 255) if self.is_night else self.WHITE
         
         # Time counter
-        time_text = font.render(f"Time: {current_time:.2f}s / {total_time:.2f}s", True, self.WHITE)
+        time_text = font.render(f"Time: {current_time:.2f}s / {total_time:.2f}s", True, text_color)
         self.screen.blit(time_text, (10, 10))
         
         # Position and angle
-        pos_text = font.render(f"Cart Position: {cart_pos:.3f}m", True, self.WHITE)
+        pos_text = font.render(f"Cart Position: {cart_pos:.3f}m", True, text_color)
         self.screen.blit(pos_text, (10, 50))
         
         angle_deg = math.degrees(pole_angle)
-        angle_text = font.render(f"Pole Angle: {angle_deg:.1f}°", True, self.WHITE)
+        angle_text = font.render(f"Pole Angle: {angle_deg:.1f}°", True, text_color)
         self.screen.blit(angle_text, (10, 90))
         
+        # Day/Night indicator
+        mode_text = "Night Mode" if self.is_night else "Day Mode"
+        mode_surface = font.render(f"Mode: {mode_text}", True, text_color)
+        self.screen.blit(mode_surface, (10, 130))
+        
         # Instructions with background
-        inst_surface = pygame.Surface((400, 30))
+        inst_surface = pygame.Surface((600, 30))
         inst_surface.set_alpha(200)
-        inst_surface.fill((0, 0, 0))
+        inst_surface.fill(bg_color)
         self.screen.blit(inst_surface, (5, self.height - 35))
         
-        inst_text = font.render("SPACE: pause/resume | R: restart | ESC: quit", True, self.WHITE)
+        inst_text = font.render("SPACE: pause/resume | R: restart | Click Sun/Moon: toggle day/night | ESC: quit", True, text_color)
         self.screen.blit(inst_text, (10, self.height - 30))
     
     def visualize(self, cart_positions, pole_angles, dt=0.02):
@@ -328,6 +436,11 @@ class CartPoleVisualizer:
                     elif event.key == pygame.K_r:
                         step = 0  # Restart animation
                         start_time = current_real_time
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left mouse button
+                        if self.handle_celestial_click(event.pos):
+                            # Successfully clicked sun/moon - no need to do anything else
+                            pass
             
             if not paused:
                 # Calculate which step we should be at based on real time
@@ -363,6 +476,21 @@ class CartPoleVisualizer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left mouse button
+                        self.handle_celestial_click(event.pos)
+            
+            # Continue drawing even when animation is finished
+            self.draw_background()
+            self.draw_ground()
+            if total_steps > 0:
+                final_cart_pos = cart_positions[-1]
+                final_pole_angle = pole_angles[-1]
+                cart_screen_x, cart_screen_y = self.draw_cart(final_cart_pos)
+                self.draw_pole(cart_screen_x, cart_screen_y, final_pole_angle)
+                self.draw_info(total_time, total_time, final_cart_pos, final_pole_angle)
+            pygame.display.flip()
+            
             self.clock.tick(30)
         
         pygame.quit()
