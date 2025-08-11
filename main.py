@@ -29,7 +29,7 @@ def plot_graph(time, force, cart_positions, pole_angles,filename, show_img=False
 
     # Plot Pole Angle
     axs[2].plot(time, pole_angles, color='tab:green')
-    axs[2].set_ylabel('Angle (deg)')
+    axs[2].set_ylabel('Angle (radian)')
     axs[2].set_xlabel('Time (s)')
     axs[2].set_title('Pole Angle vs Time')
     axs[2].grid(True)
@@ -74,11 +74,11 @@ if __name__ == "__main__":
     for t in range(0,len(time)-1):
         fn = lambda y : cartople_(y,force[t], 9.8)
         states[:,t+1] = rk4(fn, states[:,t].astype(float), dt )
-        if states[3,t] > math.pi:
-            states[3,t] -= 2*math.pi
-        elif states[3,t] < -math.pi:
-            states[3,t] += 2*math.pi
-    
+        angle = (states[3, t] + math.pi) % (2 * math.pi) - math.pi
+        states[3, t] = angle
+       
+    angle = (states[3, t+1] + math.pi) % (2 * math.pi) - math.pi
+    states[3, t+1] = angle
     cart_positions = states[1,:]
     pole_angles = states[3,:]
    
