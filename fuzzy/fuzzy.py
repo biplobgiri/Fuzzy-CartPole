@@ -55,8 +55,48 @@ class fuzzy():
             return (1.0-x)
 
 
-        def rule_inference(self):
-            pass
+        def rule_inference(self, memFunc_values):
+            input_names = list(self.antecedentsLVs.keys())
+            rules_sequence = list(self.parsed_rules.keys())
+            ouptut_dict : dict = {}
+            
+            
+            for i in range(len(rules_sequence)):
+                operations = self.parsed_rules[rules_sequence[i]]["antecedents_operations"]
+                antecedents = self.parsed_rules[rules_sequence[i]]["antecedents"]
+
+                antecedent_keys = list(antecedents.keys())
+                input_mfvalue_list : list = []
+
+                for j, key in enumerate(antecedent_keys): 
+                    value = antecedents[key]
+
+                    input_name_index = input_names.index(key)
+                    input_mfValues = memFunc_values[input_name_index]
+
+                    input_mf_index = self.antecedentsLVs[key].index(value)
+                    input_mfvalue = input_mfValues[input_mf_index]
+                    if operations(j*2) == "Not":
+                        input_mfvalue = 1 - input_mfvalue
+                    input_mfvalue_list.append(input_mfvalue)
+                
+                out = [0]
+                for o in operations:
+                    if o == "Is" or o == "Not":
+                        continue
+                    if o == "And":
+                        for i in range(1,len(input_mfvalue_list)):
+                            out = self.fuzzy_and(out,input_mfvalue_list[i])
+                    
+                    elif o == "Or":
+                        for i in range(1,len(input_mfvalue_list)):
+                            out = self.fuzzy_or(out,input_mfvalue_list[i])
+                
+                # ouptut_list.append(out) 
+
+
+            
+            return ouptut_list
 
 
 
@@ -115,6 +155,7 @@ class fuzzy():
         self.numInMFS = NumInputMFs
         self.numOut = NumOutputs    
         self.numOutMFS = NumOutputMFs
+        
 
         self.input = [self.Input(NumMFs=NumInputMFs) for _ in range(NumInputs)]
         self.output = [self.Output(NumMFs=NumOutputMFs) for _ in range(NumOutputs)]
@@ -144,9 +185,15 @@ class fuzzy():
         self.update_linguistic_variable()
         self.ruleHndl.add_rules(rule, self.antecedentLnguisticVariables, self.consequentLnguisticVariables)
     
-    def compute(self):
+    def compute(self, inputs:list):
+        if len(inputs) != self.numIn:
+            raise IndexError("Number of Inputs not equal to numIn variable ")
+
+        memFunc_values = []
+        for idx, i in enumerate(inputs):
+            memFunc_values.append([self.input[idx].MembershipFunctions[j].getFuzzyValue(i) for j in range(self.input[idx].nummfs)])        
         
-        pass
+        self.ruleHndl.rule_inference(memFunc_values)
 
 def test():
     parsed_rules : dict = {}
