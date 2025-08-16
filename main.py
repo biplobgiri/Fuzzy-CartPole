@@ -45,7 +45,7 @@ def plot_graph(time, force, cart_positions, pole_angles,filename, show_img=False
 
 if __name__ == "__main__":
     '''Fuzzy Inference system'''
-    fis = fuzzy("Cartpole-controller", 1, 2, 1 ,2)
+    fis = fuzzy("Cartpole-controller", 1, 2, 2 ,2)
     fis.input[0].name = "Theta"
     fis.input[0].range = [-math.pi, math.pi]
     fis.input[0].MembershipFunctions[0].name = "Negative"
@@ -64,8 +64,22 @@ if __name__ == "__main__":
     fis.output[0].MembershipFunctions[1].type = "gbellmf"
     fis.output[0].MembershipFunctions[1].params = [5, 2, 12]
 
-    rules =["If Theta is Negative Then Force is PM",
-            "If Theta is Positive Then Force is NM"]
+    fis.output[1].name = "Torque"
+    fis.output[1].range = [-15, 15]
+    fis.output[1].MembershipFunctions[0].name = "NM"
+    fis.output[1].MembershipFunctions[0].type = "zmf"
+    fis.output[1].MembershipFunctions[0].params = [5, 3]
+    fis.output[1].MembershipFunctions[1].name = "PM"
+    fis.output[1].MembershipFunctions[1].type = "gbellmf"
+    fis.output[1].MembershipFunctions[1].params = [5, 4, 10]
+
+    rules =["If Theta is Negative  Then Force is PM and Torque is NM",
+            "If Theta is Positive  Then Force is NM and Torque is PM"]
+
+
+
+    # rules =["If Theta is Negative Then Force is PM",
+    #         "If Theta is Positive Then Force is NM"]
     
     fis.add_rule(rules)
     inputs = [-1.0,-0.25, 0.0, 0.25, 1.0]

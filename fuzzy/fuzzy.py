@@ -206,7 +206,7 @@ class fuzzy():
         self.update_linguistic_variable()
         self.ruleHndl.add_rules(rule, self.antecedentLnguisticVariables, self.consequentLnguisticVariables)
 
-    def defuzzify(self, mem_fun_params,range):
+    def defuzzify(self, mem_fun_params,range,out_idx):
         df=0.01
 
         output_range = np.arange(range[0], range[1]+df , df)
@@ -214,7 +214,7 @@ class fuzzy():
         output_seq=np.zeros(len(output_range))
         temp_output_seq=np.zeros(len(output_range))
 
-        for idx,memfun in enumerate(self.output[0].MembershipFunctions):
+        for idx,memfun in enumerate(self.output[out_idx].MembershipFunctions):
             if(memfun.type=="zmf"):
                 temp_output_seq=[mem_fun_params[idx] if (mfs.zmf(x,memfun.params)>mem_fun_params[idx]) else mfs.zmf(x,memfun.params) for x in output_range]
 
@@ -255,10 +255,10 @@ class fuzzy():
         o = self.ruleHndl.rule_inference(memFunc_values)
         defuz=[]
         for i in range(0,self.numOut):
-            defuz.append(self.defuzzify(o,self.output[i].range))
+            defuz.append(self.defuzzify(o,self.output[i].range,i))
         
         print(f"defuz val{defuz}")
-        return defuz
+        return defuz*-1
 
 
 
