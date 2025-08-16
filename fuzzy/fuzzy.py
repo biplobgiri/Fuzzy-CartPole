@@ -1,4 +1,4 @@
-from memberships_functions import MembershipFunctionFactory as mfs
+from .memberships_functions import MembershipFunctionFactory as mfs
 import re
 import math
 import numpy as np
@@ -23,6 +23,7 @@ class fuzzy():
             for r in rule_string:
                 self.rules.append(r)
             self.numberOfRules = len(self.rules)
+            self.parse_rule()
             
 
         def parse_rule(self):
@@ -58,42 +59,60 @@ class fuzzy():
         def rule_inference(self, memFunc_values):
             input_names = list(self.antecedentsLVs.keys())
             rules_sequence = list(self.parsed_rules.keys())
-            ouptut_dict : dict = {}
+            ouptut_list : list = []
             
-            
+            print("----Inference outputs-----")
+            print("  Input names:", input_names)
+            # print("  Len:",len(rules_sequence))
             for i in range(len(rules_sequence)):
+                print(f"Rule_{i}")
                 operations = self.parsed_rules[rules_sequence[i]]["antecedents_operations"]
                 antecedents = self.parsed_rules[rules_sequence[i]]["antecedents"]
-
                 antecedent_keys = list(antecedents.keys())
+
+                print(" operations:", operations)
+                print(" Antecedent dict:", antecedents)
+                print(" Antecedent keys", antecedent_keys)
+
                 input_mfvalue_list : list = []
 
                 for j, key in enumerate(antecedent_keys): 
                     value = antecedents[key]
+                    print("   ", key, ":", value)
 
                     input_name_index = input_names.index(key)
                     input_mfValues = memFunc_values[input_name_index]
-
+                    print("   Input MF values:",input_mfValues)
+                    
                     input_mf_index = self.antecedentsLVs[key].index(value)
                     input_mfvalue = input_mfValues[input_mf_index]
-                    if operations(j*2) == "Not":
+                    if operations[j*2] == "Not":
                         input_mfvalue = 1 - input_mfvalue
-                    input_mfvalue_list.append(input_mfvalue)
-                
-                out = [0]
-                for o in operations:
-                    if o == "Is" or o == "Not":
-                        continue
-                    if o == "And":
-                        for i in range(1,len(input_mfvalue_list)):
-                            out = self.fuzzy_and(out,input_mfvalue_list[i])
-                    
-                    elif o == "Or":
-                        for i in range(1,len(input_mfvalue_list)):
-                            out = self.fuzzy_or(out,input_mfvalue_list[i])
-                
-                # ouptut_list.append(out) 
+                    print("   Input Mf value", input_mfvalue)
 
+                    input_mfvalue_list.append(input_mfvalue)   
+
+                print("  Input Mf values list:",input_mfvalue_list)   
+                if len(input_mfvalue_list) == 1:
+
+                    out = input_mfvalue_list[0]
+                else: 
+                    out = 0
+                    for o in operations:
+                        if o == "Is" or o == "Not":
+                            continue
+                        if o == "And":
+                            for i in range(1,len(input_mfvalue_list)):
+                                out = self.fuzzy_and(out,input_mfvalue_list[i])
+                        
+                        elif o == "Or":
+                            for i in range(1,len(input_mfvalue_list)):
+                                out = self.fuzzy_or(out,input_mfvalue_list[i])
+
+                print("   Out",out)
+                ouptut_list.append(out) 
+
+            print(f"Inferene output: {ouptut_list}")
 
             
             return ouptut_list
@@ -190,16 +209,27 @@ class fuzzy():
             raise IndexError("Number of Inputs not equal to numIn variable ")
 
         memFunc_values = []
-        for idx, i in enumerate(inputs):
-            memFunc_values.append([self.input[idx].MembershipFunctions[j].getFuzzyValue(i) for j in range(self.input[idx].nummfs)])        
+        print("\n\n---------Fuzzy- Inference------------------")
+        print("Input values: ", inputs)
         
-        self.ruleHndl.rule_inference(memFunc_values)
+        for idx, i in enumerate(inputs):
+            memFunc_values.append([self.input[idx].MembershipFunctions[j].getFuzzyValue(i) for j in range(self.input[idx].nummfs)])
+            print(f"{self.input[idx].name}:")
+            for c, j in enumerate(memFunc_values[idx]):
+                print(f"   {self.input[idx].MembershipFunctions[c].name}:" ,j)
+                # print(f"    {j} ")        
+        
+        o = self.ruleHndl.rule_inference(memFunc_values)
+    
+  
+
 
 def test():
     parsed_rules : dict = {}
     antecedents_dict : dict = {}
     consequents_dict : dict = {}
-    rules =["IF vel is h Then force is h","If an is as  And color is read Then spee is more Or cost is high"]
+    rules =["If Angle is Negative Then Force is PM",
+            "If Angle is Positive Then Force is NM",]
     for i,r in enumerate(rules):
                 splited = r.split("Then")
                 antecedents = splited[0].split("If")[-1]
@@ -223,30 +253,32 @@ def test():
 
                 
 if __name__ == "__main__":
-    test()
-    # pass
-    # fis = fuzzy("Cartpole-controller", 1, 2, 1 ,2)
-    # fis.input[0].name = "Theta"
-    # fis.input[0].range = [-math.pi, math.pi]
-    # fis.input[0].MembershipFunctions[0].name = "Negative"
-    # fis.input[0].MembershipFunctions[0].type = "zmf"
-    # fis.input[0].MembershipFunctions[0].params = [-0.5, 0.5]
-    # fis.input[0].MembershipFunctions[1].name = "Positives"
-    # fis.input[0].MembershipFunctions[1].type = "smf"
-    # fis.input[0].MembershipFunctions[1].params = [-0.5, 0.5]
+    # test()
+    fis = fuzzy("Cartpole-controller", 1, 2, 1 ,2)
+    fis.input[0].name = "Theta"
+    fis.input[0].range = [-math.pi, math.pi]
+    fis.input[0].MembershipFunctions[0].name = "Negative"
+    fis.input[0].MembershipFunctions[0].type = "zmf"
+    fis.input[0].MembershipFunctions[0].params = [-0.5, 0.5]
+    fis.input[0].MembershipFunctions[1].name = "Positives"
+    fis.input[0].MembershipFunctions[1].type = "smf"
+    fis.input[0].MembershipFunctions[1].params = [-0.5, 0.5]
     
-    # fis.output[0].name = "force"
-    # fis.output[0].range = [-15, 15]
-    # fis.output[0].MembershipFunctions[0].name = "NM"
-    # fis.output[0].MembershipFunctions[0].type = "gbellmf"
-    # fis.output[0].MembershipFunctions[0].params = [5, 2, -12]
-    # fis.output[0].MembershipFunctions[1].name = "PM"
-    # fis.output[0].MembershipFunctions[1].type = "gbellmf"
-    # fis.output[0].MembershipFunctions[1].params = [5, 2, 12]
+    fis.output[0].name = "force"
+    fis.output[0].range = [-15, 15]
+    fis.output[0].MembershipFunctions[0].name = "NM"
+    fis.output[0].MembershipFunctions[0].type = "gbellmf"
+    fis.output[0].MembershipFunctions[0].params = [5, 2, -12]
+    fis.output[0].MembershipFunctions[1].name = "PM"
+    fis.output[0].MembershipFunctions[1].type = "gbellmf"
+    fis.output[0].MembershipFunctions[1].params = [5, 2, 12]
 
-
-    # rules = []
-
+    rules =["If Angle is Negative Then Force is PM",
+            "If Angle is Positive Then Force is NM"]
+    
+    fis.add_rule(rules)
+    
+    
     # dt = 0.01
     # stop_theta = 50
     # theta = np.arange(-50, stop_theta + dt, dt)
@@ -256,6 +288,7 @@ if __name__ == "__main__":
     # zmf_o = np.zeros(len(theta))
     # gbellmf_o1 = np.zeros(len(theta))
     # gbellmf_o2 = np.zeros(len(theta))
+
     # for i in range (0, len(theta)):
     #     zmf_o[i] = fis.input[0].MembershipFunctions[0].getFuzzyValue(theta[i])
     #     smf_o[i] = fis.input[0].MembershipFunctions[1].getFuzzyValue(theta[i])
@@ -263,8 +296,8 @@ if __name__ == "__main__":
     #     gbellmf_o2[i] = fis.output[0].MembershipFunctions[1].getFuzzyValue(theta[i])
 
 
-    # # plt.plot(theta, zmf_o, label='zmf', color='blue', linewidth=1)
-    # # plt.plot(theta, smf_o, label='smf', color='green', linewidth=1)
+    # plt.plot(theta, zmf_o, label='zmf', color='blue', linewidth=1)
+    # plt.plot(theta, smf_o, label='smf', color='green', linewidth=1)
     # plt.plot(theta, gbellmf_o1, label='gbell', color='green', linewidth=1)
     # plt.plot(theta, gbellmf_o2, label='gbell', color='red', linewidth=1)
 
