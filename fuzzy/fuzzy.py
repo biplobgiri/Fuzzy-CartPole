@@ -165,6 +165,8 @@ class fuzzy():
         def add_mem_function(self, name, type, params):
             self.MembershipFunctions.append(fuzzy.memFunctions(name, type , params))
             self.nummfs += 1
+
+        
     
 
     def __init__(self,Name = "",NumInputs=1, NumInputMFs=1,NumOutputs=1,NumOutputMFs=1,rule="AddRule"):
@@ -203,7 +205,38 @@ class fuzzy():
     def add_rule(self, rule):
         self.update_linguistic_variable()
         self.ruleHndl.add_rules(rule, self.antecedentLnguisticVariables, self.consequentLnguisticVariables)
+
+    def defuzzify(self, mem_fun_params,range):
+        df=0.01
+
+        output_range = np.arange(range[0], range[1]+df , df)
+
+        output_seq=np.zeros(len(output_range))
+        temp_output_seq=np.zeros(len(output_range))
+
+        for idx,memfun in enumerate(self.output[0].MembershipFunctions):
+            if(memfun.type=="zmf"):
+                temp_output_seq=[mem_fun_params[idx] if (mfs.zmf(x,memfun.params)>mem_fun_params[idx]) else mfs.zmf(x,memfun.params) for x in output_range]
+
+            if(memfun.type=="smf"):
+                temp_output_seq=[mem_fun_params[idx] if (mfs.smf(x,memfun.params)>mem_fun_params[idx]) else mfs.smf(x,memfun.params) for x in output_range]
+
+            if(memfun.type=="gbellmf"):
+                temp_output_seq=[mem_fun_params[idx] if (mfs.gbellmf(x, memfun.params)>mem_fun_params[idx]) else mfs.gbellmf(x, memfun.params) for x in output_range]
+
+
+            output_seq=np.maximum(output_seq,temp_output_seq)
+
+        numerator=np.sum(output_seq*output_range)
+        denominator=np.sum(output_seq)
+
+        if (denominator==0.0):
+            return 0.0
+        
+        output_crisp= numerator/denominator   
+        return output_crisp     
     
+
     def compute(self, inputs:list):
         if len(inputs) != self.numIn:
             raise IndexError("Number of Inputs not equal to numIn variable ")
@@ -220,47 +253,12 @@ class fuzzy():
                 # print(f"    {j} ")        
         
         o = self.ruleHndl.rule_inference(memFunc_values)
-    
-class Defuzzify:
-        def __init__(self, Name, Range, NumMFs,MembershipFunctions,mem_fun_params):
-            self.name = Name
-            self.range = Range
-            self.nummfs = NumMFs
-            self.MembershipFunctions = MembershipFunctions
-            self.mem_fun_params=mem_fun_params
-
-            
-        def defuzzify(self, mem_fun_params):
-            df=0.01
-            num_scale=10000
-            range=self.range
-            # output_range=np.linspace(range[0],range[1],num_scale)
-            output_range = np.arange(range[0], range[1]+df , df)
-
-            output_seq=[]
-            temp_output_seq=[]
-
-            for idx,memfun in enumerate(self.MembershipFunctions):
-                if(memfun.type=="zmf"):
-                    temp_output_seq=[mem_fun_params[idx] if (mfs.zmf(x,memfun.params)>mem_fun_params[idx]) else mfs.zmf(x,memfun.params) for x in output_range]
-
-                if(memfun.type=="smf"):
-                    temp_output_seq=[mem_fun_params[idx] if (mfs.smf(x,memfun.params)>mem_fun_params[idx]) else mfs.smf(x,memfun.params) for x in output_range]
-
-                if(memfun.type=="gbellmf"):
-                    temp_output_seq=[mem_fun_params[idx] if (mfs.gbellmf(x, memfun.params)>mem_fun_params[idx]) else mfs.gbellmf(x, memfun.params) for x in output_range]
-
-
-                output_seq=np.maximum(output_seq,temp_output_seq)
-
-            numerator=np.sum(output_seq*output_range)
-            denominator=np.sum(output_seq)
-
-            if (denominator==0.0):
-                return 0.0
-            
-            output_crisp= numerator/denominator   
-            return output_crisp         
+        defuz=[]
+        for i in range(0,self.numOut):
+            defuz.append(self.defuzzify(o,self.output[i].range))
+        
+        print(f"defuz val{defuz}")
+        return defuz
 
 
 
