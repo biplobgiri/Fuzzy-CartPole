@@ -221,7 +221,47 @@ class fuzzy():
         
         o = self.ruleHndl.rule_inference(memFunc_values)
     
-  
+class Defuzzify:
+        def __init__(self, Name, Range, NumMFs,MembershipFunctions,mem_fun_params):
+            self.name = Name
+            self.range = Range
+            self.nummfs = NumMFs
+            self.MembershipFunctions = MembershipFunctions
+            self.mem_fun_params=mem_fun_params
+
+            
+        def defuzzify(self, mem_fun_params):
+            df=0.01
+            num_scale=10000
+            range=self.range
+            # output_range=np.linspace(range[0],range[1],num_scale)
+            output_range = np.arange(range[0], range[1]+df , df)
+
+            output_seq=[]
+            temp_output_seq=[]
+
+            for idx,memfun in enumerate(self.MembershipFunctions):
+                if(memfun.type=="zmf"):
+                    temp_output_seq=[mem_fun_params[idx] if (mfs.zmf(x,memfun.params)>mem_fun_params[idx]) else mfs.zmf(x,memfun.params) for x in output_range]
+
+                if(memfun.type=="smf"):
+                    temp_output_seq=[mem_fun_params[idx] if (mfs.smf(x,memfun.params)>mem_fun_params[idx]) else mfs.smf(x,memfun.params) for x in output_range]
+
+                if(memfun.type=="gbellmf"):
+                    temp_output_seq=[mem_fun_params[idx] if (mfs.gbellmf(x, memfun.params)>mem_fun_params[idx]) else mfs.gbellmf(x, memfun.params) for x in output_range]
+
+
+                output_seq=np.maximum(output_seq,temp_output_seq)
+
+            numerator=np.sum(output_seq*output_range)
+            denominator=np.sum(output_seq)
+
+            if (denominator==0.0):
+                return 0.0
+            
+            output_crisp= numerator/denominator   
+            return output_crisp         
+
 
 
 def test():
