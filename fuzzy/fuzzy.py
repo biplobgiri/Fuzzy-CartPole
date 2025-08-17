@@ -14,8 +14,7 @@ class fuzzy():
             self.antecedentsLVs : dict ={}
             self.consequentLVs : dict ={}
             self.fuzzy_operators = ["and", "or", "not"]
-
-            
+      
         def add_rules(self, rule_string:list, antecedentLVs, consequentLVs):
             self.antecedentsLVs = antecedentLVs
             self.consequentLVs = consequentLVs
@@ -25,7 +24,6 @@ class fuzzy():
             self.numberOfRules = len(self.rules)
             self.parse_rule()
             
-
         def parse_rule(self):
             antecedents_dict : dict = {}
             consequents_dict : dict = {}
@@ -57,50 +55,51 @@ class fuzzy():
         def fuzzy_not(self, x):
             return (1.0-x)
 
-
         def rule_inference(self, memFunc_values):
             input_names = list(self.antecedentsLVs.keys())
             rules_sequence = list(self.parsed_rules.keys())
             ouptut_list : list = []
             
-            print("----Inference outputs-----")
-            print("  Input names:", input_names)
+            # print("----Inference outputs-----")
+            # print("  Input names:", input_names)
             # print("  Len:",len(rules_sequence))
             for i in range(len(rules_sequence)):
-                print(f"Rule_{i}")
-                operations = self.parsed_rules[rules_sequence[i]]["antecedents_operations"]
+                # print(f"Rule_{i}")
+                operations_a = self.parsed_rules[rules_sequence[i]]["antecedents_operations"]
                 antecedents = self.parsed_rules[rules_sequence[i]]["antecedents"]
                 antecedent_keys = list(antecedents.keys())
 
-                print(" operations:", operations)
-                print(" Antecedent dict:", antecedents)
-                print(" Antecedent keys", antecedent_keys)
+
+
+                # print(" operations:", operations_a)
+                # print(" Antecedent dict:", antecedents)
+                # print(" Antecedent keys", antecedent_keys)
 
                 input_mfvalue_list : list = []
 
                 for j, key in enumerate(antecedent_keys): 
                     value = antecedents[key]
-                    print("   ", key, ":", value)
+                    # print("   ", key, ":", value)
 
                     input_name_index = input_names.index(key)
                     input_mfValues = memFunc_values[input_name_index]
-                    print("   Input MF values:",input_mfValues)
+                    # print("   Input MF values:",input_mfValues)
                     
                     input_mf_index = self.antecedentsLVs[key].index(value)
                     input_mfvalue = input_mfValues[input_mf_index]
-                    if operations[j*2].lower() == "not":
-                        print("Here")
+                    if operations_a[j*2].lower() == "not":
+                        # print("Here")
                         input_mfvalue = self.fuzzy_not(input_mfvalue)
-                    print("   Input Mf value", input_mfvalue)
+                    # print("   Input Mf value", input_mfvalue)
 
                     input_mfvalue_list.append(input_mfvalue)   
 
-                print("  Input Mf values list:",input_mfvalue_list)   
+                # print("  Input Mf values list:",input_mfvalue_list)   
                 out = input_mfvalue_list[0]
                 if len(input_mfvalue_list) > 1:
 
-                    for o in operations:
-                        print("Operation: ", o)
+                    for o in operations_a:
+                        
                         if o.lower() == "is" or o.lower() == "not":
                             continue
                         if o.lower() == "and":
@@ -111,16 +110,13 @@ class fuzzy():
                             for i in range(1,len(input_mfvalue_list)):
                                 out = self.fuzzy_or(out,input_mfvalue_list[i])
 
-                print("   Out",out)
+                # print("   Out",out)
                 ouptut_list.append(out) 
 
-            print(f"Inferene output: {ouptut_list}")
+            # print(f"Inferene output: {ouptut_list}")
 
             
             return ouptut_list
-
-
-
 
 
     class memFunctions:
@@ -167,8 +163,6 @@ class fuzzy():
         def add_mem_function(self, name, type, params):
             self.MembershipFunctions.append(fuzzy.memFunctions(name, type , params))
             self.nummfs += 1
-
-        
     
 
     def __init__(self,Name = "",NumInputs=1, NumInputMFs=1,NumOutputs=1,NumOutputMFs=1,rule="AddRule"):
@@ -209,8 +203,8 @@ class fuzzy():
         self.ruleHndl.add_rules(rule, self.antecedentLnguisticVariables, self.consequentLnguisticVariables)
 
     def defuzzify(self, mem_fun_params,range,out_idx):
-        df=0.01
 
+        df=0.01
         output_range = np.arange(range[0], range[1]+df , df)
 
         output_seq=np.zeros(len(output_range))
@@ -245,14 +239,14 @@ class fuzzy():
             raise IndexError(f"Number of Inputs:{len(inputs)} not equal to numIn variable:{self.numIn} ")
 
         memFunc_values = []
-        print("\n\n---------Fuzzy- Inference------------------")
-        print("Input values: ", inputs)
+        # print("\n\n---------Fuzzy- Inference------------------")
+        # print("Input values: ", inputs)
         
         for idx, i in enumerate(inputs):
             memFunc_values.append([self.input[idx].MembershipFunctions[j].getFuzzyValue(i) for j in range(self.input[idx].nummfs)])
-            print(f"{self.input[idx].name}:")
-            for c, j in enumerate(memFunc_values[idx]):
-                print(f"   {self.input[idx].MembershipFunctions[c].name}:" ,j)
+            # print(f"{self.input[idx].name}:")
+            # for c, j in enumerate(memFunc_values[idx]):
+                # print(f"   {self.input[idx].MembershipFunctions[c].name}:" ,j)
                 # print(f"    {j} ")        
         
         o = self.ruleHndl.rule_inference(memFunc_values)
@@ -260,9 +254,8 @@ class fuzzy():
         for i in range(0,self.numOut):
             defuz.append(self.defuzzify(o,self.output[i].range,i))
         
-        print(f"defuz val{defuz}")
-        return defuz*-1
-
+        # print(f"defuz val{defuz}")
+        return defuz
 
 
 def test():

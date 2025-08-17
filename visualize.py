@@ -2,6 +2,8 @@ import pygame
 import numpy as np
 import math
 import sys
+import time
+from collections import deque
 
 class CartPoleVisualizer:
     def __init__(self, width=800, height=600, pole_length_meters=2.0, cart_width_meters=1.0, cart_height_meters=0.5):
@@ -9,7 +11,7 @@ class CartPoleVisualizer:
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("CartPole Visualizer")
+        pygame.display.set_caption("Real-time CartPole Visualizer")
         
         # Day/Night toggle
         self.is_night = False
@@ -67,6 +69,19 @@ class CartPoleVisualizer:
             star_x = np.random.randint(0, self.width)
             star_y = np.random.randint(0, self.height // 2)
             self.stars.append((star_x, star_y))
+        
+        # State tracking
+        self.start_time = time.time()
+        self.frame_count = 0
+        self.should_close = False
+        
+        # History for trajectory visualization (optional)
+        self.position_history = deque(maxlen=200)
+        self.show_trajectory = False
+    
+    def should_quit(self):
+        """Check if the visualizer should quit (window closed or ESC pressed)"""
+        return self.should_close
     
     def world_to_screen(self, x_pos):
         """Convert world coordinates to screen coordinates"""
@@ -78,13 +93,24 @@ class CartPoleVisualizer:
         distance = math.sqrt((point_x - circle_x)**2 + (point_y - circle_y)**2)
         return distance <= radius
     
-    def handle_celestial_click(self, mouse_pos):
-        """Handle clicks on sun/moon to toggle day/night"""
-        mouse_x, mouse_y = mouse_pos
-        if self.is_point_in_circle(mouse_x, mouse_y, self.celestial_x, self.celestial_y, self.celestial_radius + 10):
-            self.is_night = not self.is_night
-            return True
-        return False
+    def handle_events(self):
+        """Handle pygame events - call this regularly to keep window responsive"""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.should_close = True
+                return False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.should_close = True
+                    return False
+                elif event.key == pygame.K_t:
+                    self.show_trajectory = not self.show_trajectory
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left mouse button
+                    mouse_x, mouse_y = event.pos
+                    if self.is_point_in_circle(mouse_x, mouse_y, self.celestial_x, self.celestial_y, self.celestial_radius + 10):
+                        self.is_night = not self.is_night
+        return True
     
     def draw_cart(self, x_pos):
         """Draw the cart at given position with enhanced details"""
@@ -171,7 +197,6 @@ class CartPoleVisualizer:
         
         # Draw pole as segmented mechanical rod
         num_segments = 5
-        segment_length = self.pole_length / num_segments
         
         for i in range(num_segments):
             # Calculate segment positions
@@ -233,7 +258,6 @@ class CartPoleVisualizer:
     
     def draw_stars(self):
         """Draw twinkling stars in the night sky"""
-        import time
         current_time = time.time()
         
         for i, (star_x, star_y) in enumerate(self.stars):
@@ -359,10 +383,25 @@ class CartPoleVisualizer:
                 pygame.draw.line(self.screen, grass_tip_color, 
                                (x, grass_y), (x, grass_y + 4), 1)
     
-    def draw_info(self, current_time, total_time, cart_pos, pole_angle):
+    def draw_trajectory(self):
+        """Draw trajectory trail if enabled"""
+        if self.show_trajectory and len(self.position_history) > 1:
+            trail_color = (255, 255, 100, 100) if self.is_night else (255, 0, 0, 100)
+            points = []
+            for i, pos in enumerate(self.position_history):
+                screen_x = self.world_to_screen(pos)
+                if 0 <= screen_x <= self.width:  # Only draw visible points
+                    alpha = int(255 * (i / len(self.position_history)))  # Fade trail
+                    points.append((screen_x, self.ground_y - 20))
+            
+            if len(points) > 1:
+                pygame.draw.lines(self.screen, trail_color[:3], False, points, 2)
+    
+    def draw_info(self, current_time, cart_pos, pole_angle, cart_velocity=None, pole_velocity=None):
         """Draw information text with enhanced styling"""
         # Semi-transparent background for text
-        info_surface = pygame.Surface((300, 160))
+        info_height = 200 if cart_velocity is not None else 160
+        info_surface = pygame.Surface((350, info_height))
         info_surface.set_alpha(200)
         bg_color = (0, 0, 50) if self.is_night else (0, 0, 0)
         info_surface.fill(bg_color)
@@ -371,143 +410,128 @@ class CartPoleVisualizer:
         font = pygame.font.Font(None, 36)
         text_color = (200, 200, 255) if self.is_night else self.WHITE
         
+        y_offset = 10
+        
         # Time counter
-        time_text = font.render(f"Time: {current_time:.2f}s / {total_time:.2f}s", True, text_color)
-        self.screen.blit(time_text, (10, 10))
+        time_text = font.render(f"Time: {current_time:.2f}s", True, text_color)
+        self.screen.blit(time_text, (10, y_offset))
+        y_offset += 40
         
         # Position and angle
         pos_text = font.render(f"Cart Position: {cart_pos:.3f}m", True, text_color)
-        self.screen.blit(pos_text, (10, 50))
+        self.screen.blit(pos_text, (10, y_offset))
+        y_offset += 40
         
         angle_deg = math.degrees(pole_angle)
         angle_text = font.render(f"Pole Angle: {angle_deg:.1f}°", True, text_color)
-        self.screen.blit(angle_text, (10, 90))
+        self.screen.blit(angle_text, (10, y_offset))
+        y_offset += 40
         
-        # Day/Night indicator
+        # Velocities if provided
+        if cart_velocity is not None:
+            vel_text = font.render(f"Cart Velocity: {cart_velocity:.3f}m/s", True, text_color)
+            self.screen.blit(vel_text, (10, y_offset))
+            y_offset += 40
+        
+        if pole_velocity is not None:
+            pole_vel_deg = math.degrees(pole_velocity)
+            pole_vel_text = font.render(f"Pole Velocity: {pole_vel_deg:.1f}°/s", True, text_color)
+            self.screen.blit(pole_vel_text, (10, y_offset))
+            y_offset += 40
+        
+        # Mode and instructions with background
         mode_text = "Night Mode" if self.is_night else "Day Mode"
         mode_surface = font.render(f"Mode: {mode_text}", True, text_color)
-        self.screen.blit(mode_surface, (10, 130))
+        self.screen.blit(mode_surface, (10, y_offset))
         
-        # Instructions with background
-        inst_surface = pygame.Surface((600, 30))
+        # Instructions
+        inst_surface = pygame.Surface((700, 30))
         inst_surface.set_alpha(200)
         inst_surface.fill(bg_color)
         self.screen.blit(inst_surface, (5, self.height - 35))
         
-        inst_text = font.render("SPACE: pause/resume | R: restart | Click Sun/Moon: toggle day/night | ESC: quit", True, text_color)
+        inst_text = font.render("T: toggle trajectory | Click Sun/Moon: toggle day/night | ESC: quit", True, text_color)
         self.screen.blit(inst_text, (10, self.height - 30))
     
-    def visualize(self, cart_positions, pole_angles, dt=0.02):
+    def update(self, cart_position, pole_angle, cart_velocity=None, pole_velocity=None, force_redraw=True):
         """
-        Visualize the cartpole system in real time
+        Update visualization with current state
         
         Args:
-            cart_positions: numpy array of cart positions
-            pole_angles: numpy array of pole angles (in radians)
-            dt: time step between data points (default: 0.02s)
+            cart_position: Current cart position in meters
+            pole_angle: Current pole angle in radians
+            cart_velocity: Optional cart velocity in m/s
+            pole_velocity: Optional pole angular velocity in rad/s
+            force_redraw: Whether to force a screen update (default: True)
+        
+        Returns:
+            bool: False if window should close, True otherwise
         """
-        if len(cart_positions) != len(pole_angles):
-            raise ValueError("cart_positions and pole_angles must have same length")
+        # Handle events to keep window responsive
+        if not self.handle_events():
+            return False
         
-        running = True
-        paused = False
-        step = 0
-        total_steps = len(cart_positions)
-        total_time = (total_steps - 1) * dt
+        # Update position history for trajectory
+        self.position_history.append(cart_position)
         
-        # Real-time timing
-        start_time = pygame.time.get_ticks() / 1000.0  # Convert to seconds
-        last_update_time = start_time
+        # Calculate current time
+        current_time = time.time() - self.start_time
         
-        while running and step < total_steps:
-            current_real_time = pygame.time.get_ticks() / 1000.0
-            
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        running = False
-                    elif event.key == pygame.K_SPACE:
-                        paused = not paused
-                        if not paused:
-                            # Reset timing when unpausing
-                            start_time = current_real_time - step * dt
-                    elif event.key == pygame.K_r:
-                        step = 0  # Restart animation
-                        start_time = current_real_time
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # Left mouse button
-                        if self.handle_celestial_click(event.pos):
-                            # Successfully clicked sun/moon - no need to do anything else
-                            pass
-            
-            if not paused:
-                # Calculate which step we should be at based on real time
-                elapsed_time = current_real_time - start_time
-                target_step = int(elapsed_time / dt)
-                
-                # Update step if we need to advance
-                if target_step > step and target_step < total_steps:
-                    step = target_step
-                
-                # Draw background first
-                self.draw_background()
-                
-                # Get current state
-                current_time = step * dt
-                cart_pos = cart_positions[step]
-                pole_angle = pole_angles[step]
-                
-                # Draw components (order matters for layering)
-                self.draw_ground()
-                cart_screen_x, cart_screen_y = self.draw_cart(cart_pos)
-                self.draw_pole(cart_screen_x, cart_screen_y, pole_angle)
-                self.draw_info(current_time, total_time, cart_pos, pole_angle)
-                
-                # Update display
-                pygame.display.flip()
-            
-            # Maintain consistent frame rate
+        # Draw everything
+        self.draw_background()
+        self.draw_ground()
+        
+        # Draw trajectory if enabled
+        self.draw_trajectory()
+        
+        # Draw cart and pole
+        cart_screen_x, cart_screen_y = self.draw_cart(cart_position)
+        self.draw_pole(cart_screen_x, cart_screen_y, pole_angle)
+        
+        # Draw info
+        self.draw_info(current_time, cart_position, pole_angle, cart_velocity, pole_velocity)
+        
+        # Update display
+        if force_redraw:
+            pygame.display.flip()
             self.clock.tick(self.fps)
         
-        # Keep window open at the end
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                    running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # Left mouse button
-                        self.handle_celestial_click(event.pos)
-            
-            # Continue drawing even when animation is finished
-            self.draw_background()
-            self.draw_ground()
-            if total_steps > 0:
-                final_cart_pos = cart_positions[-1]
-                final_pole_angle = pole_angles[-1]
-                cart_screen_x, cart_screen_y = self.draw_cart(final_cart_pos)
-                self.draw_pole(cart_screen_x, cart_screen_y, final_pole_angle)
-                self.draw_info(total_time, total_time, final_cart_pos, final_pole_angle)
-            pygame.display.flip()
-            
-            self.clock.tick(30)
-        
+        self.frame_count += 1
+        return True
+    
+    def close(self):
+        """Clean up and close the visualizer"""
         pygame.quit()
 
 # Example usage
 if __name__ == "__main__":
-    # Create sample data
-    t = np.linspace(0, 4 * np.pi, 200)
-    cart_positions = 0.5 * np.sin(0.5 * t)  # Cart oscillating
-    pole_angles = 0.3 * np.sin(2 * t)       # Pole swinging
-    
-    # Create visualizer with 1-meter dimensions
-    visualizer = CartPoleVisualizer(
-        pole_length_meters=1.0,    # 1 meter pole
-        cart_width_meters=1.0,     # 1 meter cart width
-        cart_height_meters=1.0     # 1 meter cart height
+    # Create visualizer
+    visualizer = RealtimeCartPoleVisualizer(
+        pole_length_meters=1.0,
+        cart_width_meters=0.8,
+        cart_height_meters=0.5
     )
     
-    # Visualize with real-time playback
-    visualizer.visualize(cart_positions, pole_angles, dt=0.02)
+    # Simulate real-time updates
+    t = 0
+    dt = 0.02  # 20ms timestep
+    
+    try:
+        while not visualizer.should_quit():
+            # Simulate cartpole dynamics (replace with your actual dynamics)
+            cart_pos = 0.5 * np.sin(0.5 * t)
+            pole_angle = 0.3 * np.sin(2 * t)
+            cart_vel = 0.25 * np.cos(0.5 * t)
+            pole_vel = 0.6 * np.cos(2 * t)
+            
+            # Update visualization
+            if not visualizer.update(cart_pos, pole_angle, cart_vel, pole_vel):
+                break
+            
+            t += dt
+            time.sleep(dt)  # Control simulation speed
+            
+    except KeyboardInterrupt:
+        print("Simulation interrupted")
+    finally:
+        visualizer.close()
