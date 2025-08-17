@@ -13,7 +13,7 @@ class fuzzy():
             self.numberOfRules : int = 0
             self.antecedentsLVs : dict ={}
             self.consequentLVs : dict ={}
-            self.fuzzy_operators = ["And", "Or", "Not"]
+            self.fuzzy_operators = ["and", "or", "not"]
 
             
         def add_rules(self, rule_string:list, antecedentLVs, consequentLVs):
@@ -34,10 +34,12 @@ class fuzzy():
                 antecedents = splited[0].split("If")[-1]
                 consequents = splited[1]     
 
-                keywords_a = re.findall(r"\b(?:is|and|or|not)\b", antecedents, flags=re.IGNORECASE)
-                antecedents_dict = dict(re.findall(r"(\w+)\s+is\s+(\w+)", antecedents))
+                keywords_a = [kw.lower().replace("is not", "not") 
+                    for kw in re.findall(r"\b(?:is not|is|and|or)\b", antecedents, flags=re.IGNORECASE)]
+                antecedents_dict = dict(re.findall(r"(\w+)\s+is(?:\s+not)?\s+(\w+)", antecedents, flags=re.IGNORECASE))
 
-                keywords_c = re.findall(r"\b(?:is|and|or|not)\b", consequents, flags=re.IGNORECASE)
+                keywords_c = [kw.lower().replace("is not", "not") 
+                    for kw in re.findall(r"\b(?:is not|is|and|or)\b", consequents, flags=re.IGNORECASE)]
                 consequents_dict = dict(re.findall(r"(\w+)\s+is\s+(\w+)", consequents))
 
                 self.parsed_rules[f"rule_{i}"] = {
@@ -86,26 +88,26 @@ class fuzzy():
                     
                     input_mf_index = self.antecedentsLVs[key].index(value)
                     input_mfvalue = input_mfValues[input_mf_index]
-                    if operations[j*2] == "Not":
-                        input_mfvalue = 1 - input_mfvalue
+                    if operations[j*2].lower() == "not":
+                        print("Here")
+                        input_mfvalue = self.fuzzy_not(input_mfvalue)
                     print("   Input Mf value", input_mfvalue)
 
                     input_mfvalue_list.append(input_mfvalue)   
 
                 print("  Input Mf values list:",input_mfvalue_list)   
-                if len(input_mfvalue_list) == 1:
+                out = input_mfvalue_list[0]
+                if len(input_mfvalue_list) > 1:
 
-                    out = input_mfvalue_list[0]
-                else: 
-                    out = 0
                     for o in operations:
-                        if o == "Is" or o == "Not":
+                        print("Operation: ", o)
+                        if o.lower() == "is" or o.lower() == "not":
                             continue
-                        if o == "And":
+                        if o.lower() == "and":
                             for i in range(1,len(input_mfvalue_list)):
                                 out = self.fuzzy_and(out,input_mfvalue_list[i])
                         
-                        elif o == "Or":
+                        elif o.lower() == "or":
                             for i in range(1,len(input_mfvalue_list)):
                                 out = self.fuzzy_or(out,input_mfvalue_list[i])
 
@@ -206,7 +208,8 @@ class fuzzy():
     
     def compute(self, inputs:list):
         if len(inputs) != self.numIn:
-            raise IndexError("Number of Inputs not equal to numIn variable ")
+            print(len(inputs), self.numIn)
+            raise IndexError(f"Number of Inputs:{len(inputs)} not equal to numIn variable:{self.numIn} ")
 
         memFunc_values = []
         print("\n\n---------Fuzzy- Inference------------------")
@@ -254,7 +257,7 @@ def test():
                 
 if __name__ == "__main__":
     # test()
-    fis = fuzzy("Cartpole-controller", 1, 2, 1 ,2)
+    fis = fuzzy("Cartpole-controller", 2, 2, 1 ,2)
     fis.input[0].name = "Theta"
     fis.input[0].range = [-math.pi, math.pi]
     fis.input[0].MembershipFunctions[0].name = "Negative"
@@ -263,6 +266,15 @@ if __name__ == "__main__":
     fis.input[0].MembershipFunctions[1].name = "Positives"
     fis.input[0].MembershipFunctions[1].type = "smf"
     fis.input[0].MembershipFunctions[1].params = [-0.5, 0.5]
+
+    fis.input[1].name = "Theta_dot"
+    fis.input[1].range = [-5, 5]
+    fis.input[1].MembershipFunctions[0].name = "Negative"
+    fis.input[1].MembershipFunctions[0].type = "zmf"
+    fis.input[1].MembershipFunctions[0].params = [-0.5, 0.5]
+    fis.input[1].MembershipFunctions[1].name = "Positives"
+    fis.input[1].MembershipFunctions[1].type = "smf"
+    fis.input[1].MembershipFunctions[1].params = [-0.5, 0.5]
     
     fis.output[0].name = "force"
     fis.output[0].range = [-15, 15]
