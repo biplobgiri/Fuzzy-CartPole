@@ -148,7 +148,7 @@ if __name__ == "__main__":
     print("Physical characteristics")
     cart_mass = 1
     pole_mass = 0.1
-    pole_length = 0.75
+    pole_length = 1
     # ''' states : x_dot, x, w_dot, w'''
     states = [ 0.0,0.0,0.0,0.0]      
     theta = states[3]
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     '''visualizer'''
     visualizer = RealtimeCartPoleVisualizer(
         pole_length_meters=pole_length,
-        cart_width_meters=0.5,
+        cart_width_meters=1.0,
         cart_height_meters=0.5
     )
 

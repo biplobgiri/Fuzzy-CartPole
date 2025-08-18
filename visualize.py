@@ -47,7 +47,7 @@ class RealtimeCartPoleVisualizer:
         self.cart_width = int(cart_width_meters * self.scale)
         self.cart_height = int(cart_height_meters * self.scale)
         self.pole_length = int(pole_length_meters * self.scale)
-        self.pole_width = 6
+        self.pole_width = 15
         
         self.ground_y = height - 100
         
@@ -55,7 +55,7 @@ class RealtimeCartPoleVisualizer:
         self.clock = pygame.time.Clock()
         self.fps = 60
         
-        # Load background images
+        # Load background images (including ground)
         self.background_images = self.load_background_images(background_path)
         
         # Sun/Moon settings
@@ -102,17 +102,18 @@ class RealtimeCartPoleVisualizer:
         self.tab_title_font = pygame.font.Font(None, 20)
     
     def load_background_images(self, background_path):
-        """Load and scale background images"""
+        """Load and scale background images including ground"""
         images = {
             'sky': None,
             'mountains': None,
             'trees_back': None,
-            'trees_front': None
+            'trees_front': None,
+            'ground': None  # New ground image layer
         }
         
         if background_path is None:
             # Use default path structure
-            base_path = "/home/kuns/stuffs/AI_lab/Fuzzy-CartPole/Images/background"
+            base_path = os.path.join(os.path.dirname(__file__), "Images", "background")
         else:
             base_path = background_path
         
@@ -122,20 +123,18 @@ class RealtimeCartPoleVisualizer:
             mountain_path = os.path.join(base_path, "mountain.png")
             trees_back_path = os.path.join(base_path, "pine1.png")
             trees_front_path = os.path.join(base_path, "pine2.png")
+            ground_path = os.path.join(base_path, "ground.png")  # New ground image
             
             if os.path.exists(sky_path):
                 images['sky'] = pygame.image.load(sky_path)
-                images['sky'] = pygame.transform.scale(images['sky'], (self.width, self.height))
-                # print("Loaded sky background")
+               
             
             if os.path.exists(mountain_path):
                 images['mountains'] = pygame.image.load(mountain_path)
-                # Scale mountains to fit width but maintain aspect ratio
                 original_size = images['mountains'].get_size()
                 scale_factor = self.width / original_size[0]
                 new_height = int(original_size[1] * scale_factor)
                 images['mountains'] = pygame.transform.scale(images['mountains'], (self.width, new_height))
-                # print("Loaded mountain background")
             
             if os.path.exists(trees_back_path):
                 images['trees_back'] = pygame.image.load(trees_back_path)
@@ -143,7 +142,6 @@ class RealtimeCartPoleVisualizer:
                 scale_factor = self.width / original_size[0]
                 new_height = int(original_size[1] * scale_factor)
                 images['trees_back'] = pygame.transform.scale(images['trees_back'], (self.width, new_height))
-                # print("Loaded back trees background")
             
             if os.path.exists(trees_front_path):
                 images['trees_front'] = pygame.image.load(trees_front_path)
@@ -151,7 +149,15 @@ class RealtimeCartPoleVisualizer:
                 scale_factor = self.width / original_size[0]
                 new_height = int(original_size[1] * scale_factor)
                 images['trees_front'] = pygame.transform.scale(images['trees_front'], (self.width, new_height))
-                # print("Loaded front trees background")
+            
+            # Load ground image
+            if os.path.exists(ground_path):
+                images['ground'] = pygame.image.load(ground_path)
+                ground_height = self.height - self.ground_y + 50  # Extend below the ground line
+                images['ground'] = pygame.transform.scale(images['ground'], (self.width, ground_height))
+            else:
+                print(f"Ground image not found at: {ground_path}")
+                print("Available alternative names to try: terrain.png, soil.png, grass.png, earth.png")
                 
         except pygame.error as e:
             print(f"Error loading background images: {e}")
@@ -247,25 +253,12 @@ class RealtimeCartPoleVisualizer:
             # Draw background layers with night tint
             if self.background_images['mountains']:
                 night_mountains = self.background_images['mountains'].copy()
-                # dark_overlay = pygame.Surface(night_mountains.get_size())
-                # dark_overlay.fill((20, 20, 40))
-                # dark_overlay.set_alpha(120)
-                # night_mountains.blit(dark_overlay, (0, 0))
-                # Position mountains in the background
-                # mountain_y = self.ground_y - night_mountains.get_height() + 50
                 mountain_y = 240
-
                 self.screen.blit(night_mountains, (0, mountain_y))
             
             if self.background_images['trees_back']:
                 night_trees_back = self.background_images['trees_back'].copy()
-                # dark_overlay = pygame.Surface(night_trees_back.get_size())
-                # dark_overlay.fill((10, 20, 10))
-                # dark_overlay.set_alpha(150)
-                # night_trees_back.blit(dark_overlay, (0, 0))
-                # trees_back_y = self.ground_y - night_trees_back.get_height() + 30
                 trees_back_y = 280
-
                 self.screen.blit(night_trees_back, (0, trees_back_y))
             
             # Draw moon
@@ -286,12 +279,10 @@ class RealtimeCartPoleVisualizer:
             
             # Draw background layers
             if self.background_images['mountains']:
-                # mountain_y = self.ground_y - self.background_images['mountains'].get_height() + 80
                 mountain_y = 240
                 self.screen.blit(self.background_images['mountains'], (0, mountain_y))
             
             if self.background_images['trees_back']:
-                # trees_back_y = self.ground_y - self.background_images['trees_back'].get_height() + 30
                 trees_back_y = 280
                 self.screen.blit(self.background_images['trees_back'], (0, trees_back_y))
             
@@ -313,10 +304,6 @@ class RealtimeCartPoleVisualizer:
         if self.background_images['trees_front']:
             if self.is_night:
                 night_trees_front = self.background_images['trees_front'].copy()
-                # dark_overlay = pygame.Surface(night_trees_front.get_size())
-                # dark_overlay.fill((5, 15, 5))
-                # dark_overlay.set_alpha(180)
-                # night_trees_front.blit(dark_overlay, (0, 0))
                 trees_front_y = self.ground_y - night_trees_front.get_height() + 40
                 self.screen.blit(night_trees_front, (0, trees_front_y))
             else:
@@ -358,7 +345,40 @@ class RealtimeCartPoleVisualizer:
         pygame.draw.circle(self.screen, self.GRAY, (int(cart_x), int(cart_y)), joint_radius - 2)
     
     def draw_ground(self):
-        # Draw simple ground without the underground brown section since we have background images
+        # Draw ground image if available, otherwise fallback to simple ground
+        if self.background_images['ground']:
+            ground_y_pos = self.ground_y - 20  # Position ground image slightly above the ground line
+            
+            # Apply night mode tint if needed
+            if self.is_night:
+                night_ground = self.background_images['ground'].copy()
+                dark_overlay = pygame.Surface(night_ground.get_size())
+                dark_overlay.fill((0, 0, 30))
+                dark_overlay.set_alpha(120)
+                night_ground.blit(dark_overlay, (0, 0))
+                self.screen.blit(night_ground, (0, ground_y_pos))
+            else:
+                self.screen.blit(self.background_images['ground'], (0, ground_y_pos))
+        else:
+            # Fallback to programmatic ground
+            # Draw ground with grass texture
+            ground_color = self.NIGHT_GRASS if self.is_night else self.DARK_GREEN
+            ground_rect = pygame.Rect(0, self.ground_y, self.width, self.height - self.ground_y)
+            pygame.draw.rect(self.screen, ground_color, ground_rect)
+            
+            # Add some underground brown layer
+            underground_color = (80, 40, 20) if self.is_night else self.BROWN
+            underground_rect = pygame.Rect(0, self.ground_y + 30, self.width, self.height - self.ground_y - 30)
+            pygame.draw.rect(self.screen, underground_color, underground_rect)
+            
+            # Add some texture to the ground
+            for i in range(0, self.width, 20):
+                grass_height = np.random.randint(5, 15)
+                grass_color = (0, max(0, 100 + np.random.randint(-20, 20)), 0) if self.is_night else (0, max(0, 150 + np.random.randint(-30, 30)), 0)
+                pygame.draw.line(self.screen, grass_color,
+                               (i, self.ground_y), (i, self.ground_y - grass_height), 2)
+        
+        # Always draw the track line on top of ground
         track_color = (100, 100, 100) if self.is_night else self.DARK_GRAY
         pygame.draw.line(self.screen, track_color, 
                         (0, self.ground_y), 
@@ -514,7 +534,7 @@ class RealtimeCartPoleVisualizer:
         current_time = time.time() - self.start_time
         
         self.draw_background()
-        self.draw_ground()
+        self.draw_ground()  # This now includes ground image support
         self.draw_target_slider()
         self.draw_trajectory()
         
@@ -540,5 +560,3 @@ class RealtimeCartPoleVisualizer:
     def close(self):
         pygame.quit()
 
-# For backward compatibility
-CartPoleVisualizer = RealtimeCartPoleVisualizer
