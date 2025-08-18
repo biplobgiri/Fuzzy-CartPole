@@ -162,7 +162,6 @@ if __name__ == "__main__":
     )
 
     target_pos = 0.0
-    # force[0] = 1.0
     while(True):
         start = time.time()
         target_pos = visualizer.get_target_position()
@@ -177,7 +176,6 @@ if __name__ == "__main__":
         states[3] = theta
 
         # Get current target position from slider
-
         cart_vel = states[0]
         cart_pos = states[1]
         pole_vel = states[2]
