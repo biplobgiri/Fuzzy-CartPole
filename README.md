@@ -19,13 +19,13 @@ The cart-pole dynamics are modeled based on the paper [*“Correct equations for
 **With friction consideration:**  
 
 <p align="center">
-  <img src="Images/dynamics_friction.png" alt="Dynamics with Friction" width="500">
+  <img src="Images/dynamics_friction.png" alt="Dynamics with Friction" width="600">
 </p>
 
 **Without friction consideration:**  
 
 <p align="center">
-  <img src="Images/dynamics_frictionless.png" alt="Dynamics without Friction" width="500">
+  <img src="Images/dynamics_frictionless.png" alt="Dynamics without Friction" width="600">
 </p>
 
 ---
@@ -34,17 +34,17 @@ The cart-pole dynamics are modeled based on the paper [*“Correct equations for
 
 **Zmf**  
 <p align="center">
-  <img src="Images/zmf.png" alt="Zmf Membership Function" width="400">
+  <img src="Images/zmf.png" alt="Zmf Membership Function" width="600">
 </p>
 
 **Smf**  
 <p align="center">
-  <img src="Images/smf.png" alt="Smf Membership Function" width="400">
+  <img src="Images/smf.png" alt="Smf Membership Function" width="600">
 </p>
 
 **Gbellmf**  
 <p align="center">
-  <img src="Images/gbellmf.png" alt="Gbellmf Membership Function" width="400">
+  <img src="Images/gbellmf.png" alt="Gbellmf Membership Function" width="600">
 </p>
 
 ---
