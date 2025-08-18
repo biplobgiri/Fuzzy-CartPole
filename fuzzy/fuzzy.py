@@ -47,10 +47,10 @@ class fuzzy():
                     "consequents": consequents_dict
                 }
         def fuzzy_or(self, x, y):
-            return max(x,y)
+            return min(x,y)
         
         def fuzzy_and(self, x, y):
-            return min(x,y)
+            return x*y
         
         def fuzzy_not(self, x):
             return (1.0-x)
@@ -63,14 +63,13 @@ class fuzzy():
             # print("----Inference outputs-----")
             # print("  Input names:", input_names)
             # print("  Len:",len(rules_sequence))
+
             for i in range(len(rules_sequence)):
-                # print(f"Rule_{i}")
                 operations_a = self.parsed_rules[rules_sequence[i]]["antecedents_operations"]
                 antecedents = self.parsed_rules[rules_sequence[i]]["antecedents"]
                 antecedent_keys = list(antecedents.keys())
 
-
-
+                # print(f"Rule_{i}")
                 # print(" operations:", operations_a)
                 # print(" Antecedent dict:", antecedents)
                 # print(" Antecedent keys", antecedent_keys)
@@ -79,20 +78,19 @@ class fuzzy():
 
                 for j, key in enumerate(antecedent_keys): 
                     value = antecedents[key]
-                    # print("   ", key, ":", value)
-
                     input_name_index = input_names.index(key)
                     input_mfValues = memFunc_values[input_name_index]
-                    # print("   Input MF values:",input_mfValues)
                     
                     input_mf_index = self.antecedentsLVs[key].index(value)
                     input_mfvalue = input_mfValues[input_mf_index]
                     if operations_a[j*2].lower() == "not":
-                        # print("Here")
                         input_mfvalue = self.fuzzy_not(input_mfvalue)
-                    # print("   Input Mf value", input_mfvalue)
 
                     input_mfvalue_list.append(input_mfvalue)   
+
+                    # print("   ", key, ":", value)
+                    # print("   Input MF values:",input_mfValues)
+                    # print("   Input Mf value", input_mfvalue)
 
                 # print("  Input Mf values list:",input_mfvalue_list)   
                 out = input_mfvalue_list[0]
@@ -110,8 +108,8 @@ class fuzzy():
                             for i in range(1,len(input_mfvalue_list)):
                                 out = self.fuzzy_or(out,input_mfvalue_list[i])
 
-                # print("   Out",out)
                 ouptut_list.append(out) 
+                # print("   Out",out)
 
             # print(f"Inferene output: {ouptut_list}")
 
@@ -246,8 +244,7 @@ class fuzzy():
             memFunc_values.append([self.input[idx].MembershipFunctions[j].getFuzzyValue(i) for j in range(self.input[idx].nummfs)])
             # print(f"{self.input[idx].name}:")
             # for c, j in enumerate(memFunc_values[idx]):
-                # print(f"   {self.input[idx].MembershipFunctions[c].name}:" ,j)
-                # print(f"    {j} ")        
+            #     print(f"   {self.input[idx].MembershipFunctions[c].name}:{i}:" ,j)
         
         o = self.ruleHndl.rule_inference(memFunc_values)
         defuz=[]

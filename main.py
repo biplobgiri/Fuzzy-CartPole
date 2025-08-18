@@ -47,7 +47,7 @@ def plot_graph(time, force, cart_positions, pole_angles,filename, show_img=False
 
 if __name__ == "__main__":
     '''Fuzzy Inference system'''
-    fis = fuzzy("Cartpole-controller", 3, 2, 1 ,6)
+    fis = fuzzy("Cartpole-controller", 4, 2, 1 ,8)
 
     fis.input[0].name = "Theta"
     fis.input[0].range = [-math.pi, math.pi]
@@ -71,19 +71,19 @@ if __name__ == "__main__":
     fis.input[2].range = [-5, 5]
     fis.input[2].MembershipFunctions[0].name = "Negative"
     fis.input[2].MembershipFunctions[0].type = "zmf"
-    fis.input[2].MembershipFunctions[0].params = [-5, 5]
+    fis.input[2].MembershipFunctions[0].params = [-1, 1]
     fis.input[2].MembershipFunctions[1].name = "Positive"
     fis.input[2].MembershipFunctions[1].type = "smf"
-    fis.input[2].MembershipFunctions[1].params = [-5, 5]
+    fis.input[2].MembershipFunctions[1].params = [-1, 1]
 
-    # fis.input[3].name = "Cart_Velocity"
-    # fis.input[3].range = [-5, 5]
-    # fis.input[3].MembershipFunctions[0].name = "Negative"
-    # fis.input[3].MembershipFunctions[0].type = "zmf"
-    # fis.input[3].MembershipFunctions[0].params = [-5, 5]
-    # fis.input[3].MembershipFunctions[1].name = "Positive"
-    # fis.input[3].MembershipFunctions[1].type = "smf"
-    # fis.input[3].MembershipFunctions[1].params = [-5, 5]
+    fis.input[3].name = "Cart_Velocity"
+    fis.input[3].range = [-5, 5]
+    fis.input[3].MembershipFunctions[0].name = "Negative"
+    fis.input[3].MembershipFunctions[0].type = "zmf"
+    fis.input[3].MembershipFunctions[0].params = [-5, 5]
+    fis.input[3].MembershipFunctions[1].name = "Positive"
+    fis.input[3].MembershipFunctions[1].type = "smf"
+    fis.input[3].MembershipFunctions[1].params = [-5, 5]
     
     fis.output[0].name = "force"
     fis.output[0].range = [-20, 20]
@@ -108,35 +108,33 @@ if __name__ == "__main__":
     fis.output[0].MembershipFunctions[5].type = "gbellmf"
     fis.output[0].MembershipFunctions[5].params = [2, 2, 2]
 
-    # fis.output[0].MembershipFunctions[6].name = "NM1"
-    # fis.output[0].MembershipFunctions[6].type = "gbellmf"
-    # fis.output[0].MembershipFunctions[6].params = [5, 1, -6]
-    # fis.output[0].MembershipFunctions[7].name = "PM2"
-    # fis.output[0].MembershipFunctions[7].type = "gbellmf"
-    # fis.output[0].MembershipFunctions[7].params = [5, 1, 6]
+    fis.output[0].MembershipFunctions[6].name = "NM1"
+    fis.output[0].MembershipFunctions[6].type = "gbellmf"
+    fis.output[0].MembershipFunctions[6].params = [3, 2, -6]
+    fis.output[0].MembershipFunctions[7].name = "PM2"
+    fis.output[0].MembershipFunctions[7].type = "gbellmf"
+    fis.output[0].MembershipFunctions[7].params = [3, 2, 6]
 
   
 
     rules =[
+        "If Theta is Negative Then Force is NM",
+        "If Theta is Positive Then Force is PM",
+        "If Theta_dot is Negative Then Force is NL",
+        "If Theta_dot is Positive Then Force is PL",
+        "If Cart_Position is Positive Then Force is NS",
+        "If Cart_Position is Negative Then Force is PS",
+        "If Cart_Velocity is Negative Then Force is NM1",
+        "If Cart_Velocity is Positive Then Force is PM1",
+
+        # "If Theta is Negative AND Theta_dot is Positive Then Force is NM",
+        # "If Theta is Positive AND Theta_dot is Negative Then Force is PM",
+        # "If Theta is Negative AND Theta_dot is Negative Then Force is NL",
+        # "If Theta is Positive AND Theta_dot is Positive Then Force is PL",
         # "If Theta is Positive And Theta_dot is Negative Then Force is NM",
         # "If Theta is Negative And Theta_dot is Positive Then Force is PM",
         # "If Theta is Negative And Theta_dot is Negative Then Force is NL",
-        # "If Theta is Positive And Theta_dot is Positive Then Force is PL"
-
-        # "If Theta is Negative Then Force is NM",
-        # "If Theta is Positive Then Force is PM",
-        # "If Theta_dot is Negative Then Force is NL",
-        # "If Theta_dot is Positive Then Force is PL",
-
-        "If Theta is Negative AND Theta_dot is Positive Then Force is NM",
-        "If Theta is Positive AND Theta_dot is Negative Then Force is PM",
-        "If Theta is Negative AND Theta_dot is Negative Then Force is NL",
-        "If Theta is Positive AND Theta_dot is Positive Then Force is PL",
-
-        "If Cart_Position is Negative Then Force is NS",
-        "If Cart_Position is Positive Then Force is PS",
-        # "If Cart_Velocity is Positive Then Force is NM1",
-        # "If Cart_Velocity is Negative Then Force is PM1",
+        # "If Theta is Positive And Theta_dot is Positive Then Force is PL"  
         
     ]
     
@@ -144,13 +142,13 @@ if __name__ == "__main__":
    
      
     '''Simulation time'''
-    dt = 0.01
+    dt = 0.05
     present_time = 0
 
     print("Physical characteristics")
     cart_mass = 1
     pole_mass = 0.1
-    pole_length = 1
+    pole_length = 0.75
     # ''' states : x_dot, x, w_dot, w'''
     states = [ 0.0,0.0,0.0,0.0]      
     theta = states[3]
@@ -169,7 +167,7 @@ if __name__ == "__main__":
         start = time.time()
         target_pos = visualizer.get_target_position()
 
-        outputs = fis.compute([theta,states[2],(target_pos - states[1])])
+        outputs = fis.compute([theta,states[2],(target_pos - states[1]),states[0]])
         force = outputs[0]
 
         fn = lambda y : cartople_(y,force, 9.8)
@@ -184,32 +182,15 @@ if __name__ == "__main__":
         cart_pos = states[1]
         pole_vel = states[2]
         pole_angle = states[3]
-        print("Force:", force, "Pos error:",target_pos - states[1] )
-
-        print("states:",  states)
-
+    
         if not visualizer.update(cart_pos, pole_angle, cart_vel, pole_vel):
+            print("Visualization Ended")
             break
-
-            
-        # break
 
         present_time += dt
         finish = time.time()
+        # print("Force:", force, "Pos error:",target_pos - states[1] )
+        # print("states:",  states)
         # print("Diff:", finish-start)
         
-        # angle = (states[3, t+1] + math.pi) % (2 * math.pi) - math.pi
-        # states[3, t+1] = angle
-
-        # cart_positions = states[1,:]
-        # pole_angles = states[3,:]
-    
-        # print("Pole Angle:", pole_angles)
-        # plot_graph(time, force, cart_positions, pole_angles, filename="cartpole_free.png")
-
-        
-        # visualizer = CartPoleVisualizer()
-        # visualizer.visualize(cart_positions, pole_angles, dt = 0.001)
-        
-
     
