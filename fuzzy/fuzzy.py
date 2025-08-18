@@ -47,7 +47,7 @@ class fuzzy():
                     "consequents": consequents_dict
                 }
         def fuzzy_or(self, x, y):
-            return min(x,y)
+            return max(x,y)
         
         def fuzzy_and(self, x, y):
             return x*y
