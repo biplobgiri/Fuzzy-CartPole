@@ -1,5 +1,6 @@
 from .memberships_functions import MembershipFunctionFactory as mfs
 import re
+import os
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -253,6 +254,54 @@ class fuzzy():
         
         # print(f"defuz val{defuz}")
         return defuz
+    
+    def visualize_memFunc(self, dir_path=None):
+        if dir_path is None:
+            raise ValueError("Output directory path not provided")
+
+        os.makedirs(dir_path, exist_ok=True)
+        dt = 0.01
+
+        # ------------------ Inputs ------------------
+        n_inputs = len(self.input)
+        fig, axs = plt.subplots(n_inputs, 1, figsize=(8, 4 * n_inputs), squeeze=False)
+
+        for idx, i in enumerate(self.input):
+            ax = axs[idx, 0]
+            for j in range(i.nummfs):
+                inputs = np.arange(i.range[0], i.range[1] + dt, dt)
+                outputs = np.array([i.MembershipFunctions[j].getFuzzyValue(x) for x in inputs])
+                ax.plot(inputs, outputs, label=f'{i.MembershipFunctions[j].name}', linewidth=1)
+            ax.set_xlabel('x')
+            ax.set_ylabel('Membership degree')
+            ax.set_title(f'{i.name} Membership Functions')
+            ax.legend()
+            ax.grid(True)
+
+        plt.tight_layout()
+        plt.savefig(f"{dir_path}/Inputs_MF.png", dpi=600)
+        plt.close()
+
+        # ------------------ Outputs ------------------
+        n_outputs = len(self.output)
+        fig, axs = plt.subplots(n_outputs, 1, figsize=(8, 4 * n_outputs), squeeze=False)
+
+        for idx, i in enumerate(self.output):
+            ax = axs[idx, 0]
+            for j in range(i.nummfs):
+                inputs = np.arange(i.range[0], i.range[1] + dt, dt)
+                outputs = np.array([i.MembershipFunctions[j].getFuzzyValue(x) for x in inputs])
+                ax.plot(inputs, outputs, label=f'{i.MembershipFunctions[j].name}', linewidth=1)
+            ax.set_xlabel('x')
+            ax.set_ylabel('Membership degree')
+            ax.set_title(f'{i.name} Membership Functions')
+            ax.legend()
+            ax.grid(True)
+
+        plt.tight_layout()
+        plt.savefig(f"{dir_path}/Outputs_MF.png", dpi=600)
+        plt.close()
+
 
 
 def test():
@@ -319,34 +368,6 @@ if __name__ == "__main__":
     fis.add_rule(rules)
     
     
-    # dt = 0.01
-    # stop_theta = 50
-    # theta = np.arange(-50, stop_theta + dt, dt)
-    
-
-    # smf_o = np.zeros(len(theta))
-    # zmf_o = np.zeros(len(theta))
-    # gbellmf_o1 = np.zeros(len(theta))
-    # gbellmf_o2 = np.zeros(len(theta))
-
-    # for i in range (0, len(theta)):
-    #     zmf_o[i] = fis.input[0].MembershipFunctions[0].getFuzzyValue(theta[i])
-    #     smf_o[i] = fis.input[0].MembershipFunctions[1].getFuzzyValue(theta[i])
-    #     gbellmf_o1[i] = fis.output[0].MembershipFunctions[0].getFuzzyValue(theta[i])
-    #     gbellmf_o2[i] = fis.output[0].MembershipFunctions[1].getFuzzyValue(theta[i])
-
-
-    # plt.plot(theta, zmf_o, label='zmf', color='blue', linewidth=1)
-    # plt.plot(theta, smf_o, label='smf', color='green', linewidth=1)
-    # plt.plot(theta, gbellmf_o1, label='gbell', color='green', linewidth=1)
-    # plt.plot(theta, gbellmf_o2, label='gbell', color='red', linewidth=1)
-
-
-    # plt.xlabel('Theta')
-    # plt.ylabel('Values')
-    # plt.title('Plot of zmf and smf vs Theta')
-    # plt.legend()
-    # plt.grid(True)
-    # plt.show()
+   
 
     

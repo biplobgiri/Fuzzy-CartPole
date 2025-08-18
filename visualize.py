@@ -1,7 +1,6 @@
 import pygame
 import numpy as np
 import math
-import sys
 import time
 import os
 from collections import deque

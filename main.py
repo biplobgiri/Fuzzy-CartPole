@@ -1,48 +1,83 @@
+
+import time
+import math
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from fuzzy.fuzzy import fuzzy
 
-import math
 from cartpole import cartople
 from rk4 import rk4
 from visualize import RealtimeCartPoleVisualizer
 
-import time
 
 
-def plot_graph(time, force, cart_positions, pole_angles,filename, show_img=False):
-    fig, axs = plt.subplots(3, 1, figsize=(8, 10), sharex=True)
+from matplotlib.ticker import MaxNLocator
+def plot_graph(dt, lv, dir_path, filename, show_img=False):
+    if dir_path is None:
+        raise ValueError("Output directory path not provided")
 
-    # Plot Force
-    axs[0].plot(time, force, color='tab:blue')
-    axs[0].set_ylabel('Force (N)')
-    axs[0].set_title('Force vs Time')
-    axs[0].grid(True)
-    axs[0].xaxis.set_major_locator(MaxNLocator(nbins=10))  # limit number of ticks
-    axs[0].yaxis.set_major_locator(MaxNLocator(nbins=10))
+    os.makedirs(dir_path, exist_ok=True)
 
-    # Plot Cart Position
-    axs[1].plot(time, cart_positions, color='tab:orange')
-    axs[1].set_ylabel('Position (m)')
-    axs[1].set_title('Cart Position vs Time')
-    axs[1].grid(True)
-    axs[1].xaxis.set_major_locator(MaxNLocator(nbins=10))
-    axs[1].yaxis.set_major_locator(MaxNLocator(nbins=10))
+    force      = lv[0, :]
+    target     = lv[1, :]
+    car_vel    = lv[2, :]
+    car_pos    = lv[3, :]
+    pole_vel   = lv[4, :]
+    pole_angle = np.degrees(lv[5, :])
 
-    # Plot Pole Angle
-    axs[2].plot(time, pole_angles, color='tab:green')
-    axs[2].set_ylabel('Angle (radian)')
-    axs[2].set_xlabel('Time (s)')
-    axs[2].set_title('Pole Angle vs Time')
-    axs[2].grid(True)
-    axs[2].xaxis.set_major_locator(MaxNLocator(nbins=10))
-    axs[2].yaxis.set_major_locator(MaxNLocator(nbins=10))
+    time = np.arange(0, len(force) * dt, dt)
+
+    # create "grid" layout for subplots
+    fig = plt.figure(figsize=(8, 12))
+
+    # --- Plot 1: Force ---
+    ax1 = plt.subplot2grid((5,1), (0,0))
+    ax1.plot(time, force, color='tab:blue')
+    ax1.set_ylabel('Force (N)')
+    ax1.set_title('Force vs Time')
+    ax1.grid(True)
+    ax1.xaxis.set_major_locator(MaxNLocator(nbins=10))
+    ax1.yaxis.set_major_locator(MaxNLocator(nbins=10))
+
+    # --- Plot 2: Target & Cart Position ---
+    ax2 = plt.subplot2grid((5,1), (1,0))
+    ax2.plot(time, target, label="Target", color='tab:red')
+    ax2.plot(time, car_pos, label="Cart Position", color='tab:orange')
+    ax2.set_ylabel('Position (m)')
+    ax2.set_title('Target & Cart Position vs Time')
+    ax2.legend()
+    ax2.grid(True)
+    ax2.xaxis.set_major_locator(MaxNLocator(nbins=10))
+    ax2.yaxis.set_major_locator(MaxNLocator(nbins=10))
+
+    # --- Plot 3a: Car Velocity ---
+    ax3 = plt.subplot2grid((5,1), (2,0))
+    ax3.plot(time, car_vel, color='tab:blue')
+    ax3.set_ylabel('Car Vel (m/s)')
+    ax3.grid(True)
+
+    # --- Plot 3b: Pole Velocity ---
+    ax4 = plt.subplot2grid((5,1), (3,0))
+    ax4.plot(time, pole_vel, color='tab:green')
+    ax4.set_ylabel('Pole Vel (rad/s)')
+    ax4.grid(True)
+
+    # --- Plot 3c: Pole Angle ---
+    ax5 = plt.subplot2grid((5,1), (4,0))
+    ax5.plot(time, pole_angle, color='tab:purple')
+    ax5.set_ylabel('Pole Angle (deg)')
+    ax5.set_xlabel('Time (s)')
+    ax5.grid(True)
 
     plt.tight_layout()
-    plt.savefig(f"Images/{filename}", dpi=600)
+    plt.savefig(f"{dir_path}/{filename}", dpi=600)
+
     if show_img:
         plt.show()
+    else:
+        plt.close()
 
 
 if __name__ == "__main__":
@@ -139,17 +174,17 @@ if __name__ == "__main__":
     ]
     
     fis.add_rule(rules)
-   
+    # fis.visualize_memFunc("/home/kuns/stuffs/AI_lab/Fuzzy-CartPole/Images/member_functions")
      
     '''Simulation time'''
     dt = 0.05
     present_time = 0
 
-    print("Physical characteristics")
     cart_mass = 1
     pole_mass = 0.1
     pole_length = 1
-    # ''' states : x_dot, x, w_dot, w'''
+
+    ''' states : x_dot, x, w_dot, w'''
     states = [ 0.0,0.0,0.0,0.0]      
     theta = states[3]
     cartople_ = cartople(cart_mass, pole_mass, pole_length)
@@ -162,6 +197,7 @@ if __name__ == "__main__":
     )
 
     target_pos = 0.0
+    logged_variables =[]
     while(True):
         start = time.time()
         target_pos = visualizer.get_target_position()
@@ -187,8 +223,17 @@ if __name__ == "__main__":
 
         present_time += dt
         finish = time.time()
-        # print("Force:", force, "Pos error:",target_pos - states[1] )
-        # print("states:",  states)
-        # print("Diff:", finish-start)
-        
+        logged_variables.append([
+            float(force),
+            float(target_pos),
+            float(cart_vel),
+            float(cart_pos),
+            float(pole_vel),
+            float(pole_angle)
+        ])
+       
+    logged_variables = np.array(logged_variables).T
+    plot = False
+    if plot:
+        plot_graph(dt,logged_variables, "/home/kuns/stuffs/AI_lab/Fuzzy-CartPole/Images", "states.png",)
     
