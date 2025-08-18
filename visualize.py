@@ -3,10 +3,11 @@ import numpy as np
 import math
 import sys
 import time
+import os
 from collections import deque
 
 class RealtimeCartPoleVisualizer:
-    def __init__(self, width=800, height=600, pole_length_meters=2.0, cart_width_meters=1.0, cart_height_meters=0.5):
+    def __init__(self, width=800, height=600, pole_length_meters=2.0, cart_width_meters=1.0, cart_height_meters=0.5, background_path=None):
         pygame.init()
         self.width = width
         self.height = height
@@ -28,7 +29,7 @@ class RealtimeCartPoleVisualizer:
         self.LIGHT_GRAY = (211, 211, 211)
         self.DARK_GRAY = (105, 105, 105)
         self.YELLOW = (255, 255, 0)
-        self.ORANGE = (255, 165, 0)  # Added orange color
+        self.ORANGE = (255, 165, 0)
         
         # Night colors
         self.NIGHT_SKY = (25, 25, 112)
@@ -36,11 +37,6 @@ class RealtimeCartPoleVisualizer:
         self.STAR_COLOR = (255, 255, 255)
         self.NIGHT_CLOUD = (70, 70, 70)
         self.NIGHT_GRASS = (0, 80, 0)
-        
-        # Mountain colors
-        self.MOUNTAIN_COLOR = (70, 70, 70)
-        self.MOUNTAIN_NIGHT = (40, 40, 60)
-        self.MOUNTAIN_SNOW = (240, 240, 255)
         
         # Physical dimensions
         self.pole_length_meters = pole_length_meters
@@ -51,7 +47,7 @@ class RealtimeCartPoleVisualizer:
         self.cart_width = int(cart_width_meters * self.scale)
         self.cart_height = int(cart_height_meters * self.scale)
         self.pole_length = int(pole_length_meters * self.scale)
-        self.pole_width = 6  # Made thinner for simplified look
+        self.pole_width = 6
         
         self.ground_y = height - 100
         
@@ -59,12 +55,15 @@ class RealtimeCartPoleVisualizer:
         self.clock = pygame.time.Clock()
         self.fps = 60
         
-        # Sun/Moon settings - moved lower to avoid overlap with horizontal bar
+        # Load background images
+        self.background_images = self.load_background_images(background_path)
+        
+        # Sun/Moon settings
         self.celestial_x = self.width - 100
-        self.celestial_y = 120  # Moved down from 80 to 120
+        self.celestial_y = 120
         self.celestial_radius = 35
         
-        # Stars
+        # Stars for night mode
         self.stars = []
         np.random.seed(42)
         for _ in range(50):
@@ -81,18 +80,17 @@ class RealtimeCartPoleVisualizer:
         self.position_history = deque(maxlen=200)
         self.show_trajectory = False
         
-        # Target position slider (integrated with ground track)
+        # Target position slider
         self.slider_min_pos = -3.0
         self.slider_max_pos = 3.0
         self.target_position = 0.0
         self.slider_dragging = False
         self.slider_knob_radius = 15
         
-        # Calculate slider bounds based on screen and scale
+        # Calculate slider bounds
         self.slider_left_x = self.world_to_screen(self.slider_min_pos)
         self.slider_right_x = self.world_to_screen(self.slider_max_pos)
         
-        # Add missing slider rectangle attributes
         self.slider_x = self.slider_left_x
         self.slider_y = self.ground_y + 35
         self.slider_width = self.slider_right_x - self.slider_left_x
@@ -102,6 +100,64 @@ class RealtimeCartPoleVisualizer:
         self.tab_height = 80
         self.tab_font = pygame.font.Font(None, 24)
         self.tab_title_font = pygame.font.Font(None, 20)
+    
+    def load_background_images(self, background_path):
+        """Load and scale background images"""
+        images = {
+            'sky': None,
+            'mountains': None,
+            'trees_back': None,
+            'trees_front': None
+        }
+        
+        if background_path is None:
+            # Use default path structure
+            base_path = "/home/kuns/stuffs/AI_lab/Fuzzy-CartPole/Images/background"
+        else:
+            base_path = background_path
+        
+        try:
+            # Load each background layer
+            sky_path = os.path.join(base_path, "sky_cloud.png")
+            mountain_path = os.path.join(base_path, "mountain.png")
+            trees_back_path = os.path.join(base_path, "pine1.png")
+            trees_front_path = os.path.join(base_path, "pine2.png")
+            
+            if os.path.exists(sky_path):
+                images['sky'] = pygame.image.load(sky_path)
+                images['sky'] = pygame.transform.scale(images['sky'], (self.width, self.height))
+                # print("Loaded sky background")
+            
+            if os.path.exists(mountain_path):
+                images['mountains'] = pygame.image.load(mountain_path)
+                # Scale mountains to fit width but maintain aspect ratio
+                original_size = images['mountains'].get_size()
+                scale_factor = self.width / original_size[0]
+                new_height = int(original_size[1] * scale_factor)
+                images['mountains'] = pygame.transform.scale(images['mountains'], (self.width, new_height))
+                # print("Loaded mountain background")
+            
+            if os.path.exists(trees_back_path):
+                images['trees_back'] = pygame.image.load(trees_back_path)
+                original_size = images['trees_back'].get_size()
+                scale_factor = self.width / original_size[0]
+                new_height = int(original_size[1] * scale_factor)
+                images['trees_back'] = pygame.transform.scale(images['trees_back'], (self.width, new_height))
+                # print("Loaded back trees background")
+            
+            if os.path.exists(trees_front_path):
+                images['trees_front'] = pygame.image.load(trees_front_path)
+                original_size = images['trees_front'].get_size()
+                scale_factor = self.width / original_size[0]
+                new_height = int(original_size[1] * scale_factor)
+                images['trees_front'] = pygame.transform.scale(images['trees_front'], (self.width, new_height))
+                # print("Loaded front trees background")
+                
+        except pygame.error as e:
+            print(f"Error loading background images: {e}")
+            print("Falling back to programmatic backgrounds")
+        
+        return images
     
     def should_quit(self):
         return self.should_close
@@ -115,25 +171,19 @@ class RealtimeCartPoleVisualizer:
         return distance <= radius
     
     def get_slider_knob_x(self):
-        """Get the x position of the slider knob based on target position"""
         return self.world_to_screen(self.target_position)
     
     def set_target_from_mouse_x(self, mouse_x):
-        """Set target position based on mouse x coordinate"""
-        # Convert screen x to world position
         target_world_pos = (mouse_x - self.width // 2) / self.scale
-        # Clamp to slider bounds
         self.target_position = max(self.slider_min_pos, min(self.slider_max_pos, target_world_pos))
     
     def is_point_in_slider(self, mouse_x, mouse_y):
-        """Check if mouse is over the slider knob"""
         knob_x = self.get_slider_knob_x()
         knob_y = self.slider_y + self.slider_height // 2
         return (abs(mouse_x - knob_x) <= self.slider_knob_radius and 
                 abs(mouse_y - knob_y) <= self.slider_knob_radius)
     
     def is_mouse_on_track(self, mouse_x, mouse_y):
-        """Check if mouse is on the ground track area for target setting"""
         return (self.slider_left_x <= mouse_x <= self.slider_right_x and 
                 self.ground_y - 10 <= mouse_y <= self.ground_y + 60)
     
@@ -168,10 +218,114 @@ class RealtimeCartPoleVisualizer:
                     self.set_target_from_mouse_x(mouse_x)
         return True
     
+    def draw_stars(self):
+        current_time = time.time()
+        for i, (star_x, star_y) in enumerate(self.stars):
+            twinkle_phase = (current_time * 2 + i) % (2 * math.pi)
+            brightness = int(200 + 55 * math.sin(twinkle_phase))
+            star_color = (brightness, brightness, brightness)
+            star_size = 1 + int(0.5 * math.sin(twinkle_phase + i))
+            pygame.draw.circle(self.screen, star_color, (star_x, star_y), star_size)
+    
+    def draw_background(self):
+        if self.is_night:
+            # Night mode - use darker overlay
+            if self.background_images['sky']:
+                # Create a darkened version of the sky
+                night_sky = self.background_images['sky'].copy()
+                dark_overlay = pygame.Surface((self.width, self.height))
+                dark_overlay.fill((0, 0, 50))
+                dark_overlay.set_alpha(180)
+                night_sky.blit(dark_overlay, (0, 0))
+                self.screen.blit(night_sky, (0, 0))
+            else:
+                self.screen.fill(self.NIGHT_SKY)
+            
+            # Draw stars
+            self.draw_stars()
+            
+            # Draw background layers with night tint
+            if self.background_images['mountains']:
+                night_mountains = self.background_images['mountains'].copy()
+                # dark_overlay = pygame.Surface(night_mountains.get_size())
+                # dark_overlay.fill((20, 20, 40))
+                # dark_overlay.set_alpha(120)
+                # night_mountains.blit(dark_overlay, (0, 0))
+                # Position mountains in the background
+                # mountain_y = self.ground_y - night_mountains.get_height() + 50
+                mountain_y = 240
+
+                self.screen.blit(night_mountains, (0, mountain_y))
+            
+            if self.background_images['trees_back']:
+                night_trees_back = self.background_images['trees_back'].copy()
+                # dark_overlay = pygame.Surface(night_trees_back.get_size())
+                # dark_overlay.fill((10, 20, 10))
+                # dark_overlay.set_alpha(150)
+                # night_trees_back.blit(dark_overlay, (0, 0))
+                # trees_back_y = self.ground_y - night_trees_back.get_height() + 30
+                trees_back_y = 280
+
+                self.screen.blit(night_trees_back, (0, trees_back_y))
+            
+            # Draw moon
+            pygame.draw.circle(self.screen, self.MOON_COLOR, (self.celestial_x, self.celestial_y), self.celestial_radius)
+            pygame.draw.circle(self.screen, (220, 220, 200), (self.celestial_x, self.celestial_y), self.celestial_radius - 8)
+            
+            # Moon craters
+            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x - 8, self.celestial_y - 5), 4)
+            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x + 6, self.celestial_y + 8), 3)
+            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x + 3, self.celestial_y - 10), 2)
+            
+        else:
+            # Day mode
+            if self.background_images['sky']:
+                self.screen.blit(self.background_images['sky'], (0, 0))
+            else:
+                self.screen.fill(self.LIGHT_BLUE)
+            
+            # Draw background layers
+            if self.background_images['mountains']:
+                # mountain_y = self.ground_y - self.background_images['mountains'].get_height() + 80
+                mountain_y = 240
+                self.screen.blit(self.background_images['mountains'], (0, mountain_y))
+            
+            if self.background_images['trees_back']:
+                # trees_back_y = self.ground_y - self.background_images['trees_back'].get_height() + 30
+                trees_back_y = 280
+                self.screen.blit(self.background_images['trees_back'], (0, trees_back_y))
+            
+            # Draw sun
+            pygame.draw.circle(self.screen, self.YELLOW, (self.celestial_x, self.celestial_y), self.celestial_radius)
+            pygame.draw.circle(self.screen, (255, 255, 150), (self.celestial_x, self.celestial_y), 25)
+            
+            # Sun rays
+            for i in range(8):
+                angle = i * math.pi / 4
+                ray_start_x = self.celestial_x + 45 * math.cos(angle)
+                ray_start_y = self.celestial_y + 45 * math.sin(angle)
+                ray_end_x = self.celestial_x + 60 * math.cos(angle)
+                ray_end_y = self.celestial_y + 60 * math.sin(angle)
+                pygame.draw.line(self.screen, self.YELLOW, 
+                               (ray_start_x, ray_start_y), (ray_end_x, ray_end_y), 3)
+        
+        # Draw front trees last (closest to viewer)
+        if self.background_images['trees_front']:
+            if self.is_night:
+                night_trees_front = self.background_images['trees_front'].copy()
+                # dark_overlay = pygame.Surface(night_trees_front.get_size())
+                # dark_overlay.fill((5, 15, 5))
+                # dark_overlay.set_alpha(180)
+                # night_trees_front.blit(dark_overlay, (0, 0))
+                trees_front_y = self.ground_y - night_trees_front.get_height() + 40
+                self.screen.blit(night_trees_front, (0, trees_front_y))
+            else:
+                trees_front_y = self.ground_y - self.background_images['trees_front'].get_height() + 40
+                self.screen.blit(self.background_images['trees_front'], (0, trees_front_y))
+    
     def draw_cart(self, x_pos):
-        """Draw simplified cart as a rectangular block"""
         screen_x = self.world_to_screen(x_pos)
-        cart_color = (255, 0, 255)  # Bright magenta/purple like in the figure
+        cart_color = (255, 0, 255)  # Bright magenta/purple
         
         cart_rect = pygame.Rect(
             screen_x - self.cart_width // 2,
@@ -180,17 +334,16 @@ class RealtimeCartPoleVisualizer:
             self.cart_height
         )
         pygame.draw.rect(self.screen, cart_color, cart_rect)
-        pygame.draw.rect(self.screen, self.BLACK, cart_rect, 2)  # Black outline
+        pygame.draw.rect(self.screen, self.BLACK, cart_rect, 2)
         
         return screen_x, self.ground_y - self.cart_height // 2
     
     def draw_pole(self, cart_x, cart_y, angle):
-        """Draw simplified pole as a single yellow line"""
         pole_end_x = cart_x + self.pole_length * math.sin(angle)
         pole_end_y = cart_y - self.pole_length * math.cos(angle)
         
         # Draw pole as a thick yellow line
-        pole_color = (255, 255, 0)  # Bright yellow like in the figure
+        pole_color = (255, 255, 0)  # Bright yellow
         pygame.draw.line(self.screen, pole_color,
                         (cart_x, cart_y), (pole_end_x, pole_end_y), 
                         self.pole_width)
@@ -204,132 +357,18 @@ class RealtimeCartPoleVisualizer:
         pygame.draw.circle(self.screen, self.BLACK, (int(cart_x), int(cart_y)), joint_radius)
         pygame.draw.circle(self.screen, self.GRAY, (int(cart_x), int(cart_y)), joint_radius - 2)
     
-    def draw_stars(self):
-        current_time = time.time()
-        for i, (star_x, star_y) in enumerate(self.stars):
-            twinkle_phase = (current_time * 2 + i) % (2 * math.pi)
-            brightness = int(200 + 55 * math.sin(twinkle_phase))
-            star_color = (brightness, brightness, brightness)
-            star_size = 1 + int(0.5 * math.sin(twinkle_phase + i))
-            pygame.draw.circle(self.screen, star_color, (star_x, star_y), star_size)
-    
-    def draw_mountains(self):
-        """Draw a single iconic mountain like Mount Fuji in the background"""
-        mountain_base_y = self.ground_y - 30
-        mountain_color = self.MOUNTAIN_NIGHT if self.is_night else self.MOUNTAIN_COLOR
-        snow_color = self.MOUNTAIN_SNOW
-        
-        # Single centered mountain - Fuji-style
-        peak_x = self.width // 2 + 100  # Slightly off-center
-        mountain_height = 200
-        base_width = 160
-        
-        # Create symmetric mountain shape (like Mount Fuji)
-        mountain_points = [
-            (peak_x - base_width, mountain_base_y),  # Left base
-            (peak_x - base_width // 2, mountain_base_y - mountain_height // 4),  # Left middle slope
-            (peak_x - 20, mountain_base_y - mountain_height * 0.8),  # Left upper slope
-            (peak_x, mountain_base_y - mountain_height),  # Peak
-            (peak_x + 20, mountain_base_y - mountain_height * 0.8),  # Right upper slope
-            (peak_x + base_width // 2, mountain_base_y - mountain_height // 4),  # Right middle slope
-            (peak_x + base_width, mountain_base_y)  # Right base
-        ]
-        
-        # Draw the main mountain
-        pygame.draw.polygon(self.screen, mountain_color, mountain_points)
-        
-        # Add snow cap (larger, more prominent like Fuji)
-        snow_points = [
-            (peak_x - 25, mountain_base_y - mountain_height + 40),  # Left snow line
-            (peak_x, mountain_base_y - mountain_height),  # Peak
-            (peak_x + 25, mountain_base_y - mountain_height + 40)  # Right snow line
-        ]
-        pygame.draw.polygon(self.screen, snow_color, snow_points)
-        
-        # Add subtle mountain ridges/texture
-        ridge_color = tuple(max(0, c - 20) for c in mountain_color)
-        pygame.draw.line(self.screen, ridge_color, 
-                        (peak_x - 15, mountain_base_y - mountain_height * 0.9),
-                        (peak_x - 60, mountain_base_y - mountain_height * 0.3), 2)
-        pygame.draw.line(self.screen, ridge_color, 
-                        (peak_x + 15, mountain_base_y - mountain_height * 0.9),
-                        (peak_x + 60, mountain_base_y - mountain_height * 0.3), 2)
-
-    def draw_background(self):
-        if self.is_night:
-            self.screen.fill(self.NIGHT_SKY)
-            self.draw_stars()
-            self.draw_mountains()  # Draw mountains after sky but before celestial objects
-            
-            pygame.draw.circle(self.screen, self.MOON_COLOR, (self.celestial_x, self.celestial_y), self.celestial_radius)
-            pygame.draw.circle(self.screen, (220, 220, 200), (self.celestial_x, self.celestial_y), self.celestial_radius - 8)
-            
-            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x - 8, self.celestial_y - 5), 4)
-            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x + 6, self.celestial_y + 8), 3)
-            pygame.draw.circle(self.screen, (200, 200, 180), (self.celestial_x + 3, self.celestial_y - 10), 2)
-            
-            # Clouds moved lower to avoid overlap with horizontal bar
-            cloud_positions = [(150, 140), (400, 120), (600, 160)]  # Adjusted Y positions
-            for cloud_x, cloud_y in cloud_positions:
-                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x, cloud_y), 25)
-                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x + 20, cloud_y), 20)
-                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x - 20, cloud_y), 20)
-                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x + 10, cloud_y - 15), 18)
-                pygame.draw.circle(self.screen, self.NIGHT_CLOUD, (cloud_x - 10, cloud_y - 15), 18)
-        else:
-            self.screen.fill(self.LIGHT_BLUE)
-            self.draw_mountains()  # Draw mountains after sky but before celestial objects
-            
-            pygame.draw.circle(self.screen, self.YELLOW, (self.celestial_x, self.celestial_y), self.celestial_radius)
-            pygame.draw.circle(self.screen, (255, 255, 150), (self.celestial_x, self.celestial_y), 25)
-            
-            for i in range(8):
-                angle = i * math.pi / 4
-                ray_start_x = self.celestial_x + 45 * math.cos(angle)
-                ray_start_y = self.celestial_y + 45 * math.sin(angle)
-                ray_end_x = self.celestial_x + 60 * math.cos(angle)
-                ray_end_y = self.celestial_y + 60 * math.sin(angle)
-                pygame.draw.line(self.screen, self.YELLOW, 
-                               (ray_start_x, ray_start_y), (ray_end_x, ray_end_y), 3)
-            
-            # Clouds moved lower to avoid overlap with horizontal bar
-            cloud_positions = [(150, 140), (400, 120), (600, 160)]  # Adjusted Y positions
-            for cloud_x, cloud_y in cloud_positions:
-                pygame.draw.circle(self.screen, self.WHITE, (cloud_x, cloud_y), 25)
-                pygame.draw.circle(self.screen, self.WHITE, (cloud_x + 20, cloud_y), 20)
-                pygame.draw.circle(self.screen, self.WHITE, (cloud_x - 20, cloud_y), 20)
-                pygame.draw.circle(self.screen, self.WHITE, (cloud_x + 10, cloud_y - 15), 18)
-                pygame.draw.circle(self.screen, self.WHITE, (cloud_x - 10, cloud_y - 15), 18)
-    
     def draw_ground(self):
-        """Draw simplified ground without scale markings"""
-        underground_rect = pygame.Rect(0, self.ground_y, self.width, self.height - self.ground_y)
-        pygame.draw.rect(self.screen, self.BROWN, underground_rect)
-        
-        # Draw simple ground line without markings
+        # Draw simple ground without the underground brown section since we have background images
         track_color = (100, 100, 100) if self.is_night else self.DARK_GRAY
         pygame.draw.line(self.screen, track_color, 
                         (0, self.ground_y), 
                         (self.width, self.ground_y), 4)
         
-        # Only draw center reference line
+        # Draw center reference line
         center_x = self.width // 2
         center_color = (255, 255, 100) if self.is_night else (255, 255, 0)
         pygame.draw.line(self.screen, center_color, 
                         (center_x, self.ground_y - 8), (center_x, self.ground_y + 8), 3)
-        
-        # Draw grass
-        grass_y = self.ground_y - 15
-        grass_color = self.NIGHT_GRASS if self.is_night else self.DARK_GREEN
-        grass_tip_color = (0, 120, 0) if self.is_night else (50, 200, 50)
-        
-        for x in range(0, self.width, 8):
-            blade_height = 10 + (hash(x) % 8)
-            pygame.draw.line(self.screen, grass_color, 
-                           (x, grass_y), (x, grass_y + blade_height), 2)
-            if blade_height > 12:
-                pygame.draw.line(self.screen, grass_tip_color, 
-                               (x, grass_y), (x, grass_y + 4), 1)
     
     def draw_target_slider(self):
         track_color = (80, 80, 80) if self.is_night else (60, 60, 60)
@@ -349,7 +388,7 @@ class RealtimeCartPoleVisualizer:
             
             if abs(pos) < 0.01:
                 label_text = "0"
-                label_color = self.ORANGE  # Changed from red/yellow to orange
+                label_color = self.ORANGE
             else:
                 label_text = f"{pos:.1f}"
                 label_color = marking_color
@@ -362,7 +401,7 @@ class RealtimeCartPoleVisualizer:
         
         target_screen_x = self.world_to_screen(self.target_position)
         if 0 <= target_screen_x <= self.width:
-            target_color = self.ORANGE  # Changed from red to orange
+            target_color = self.ORANGE
             pygame.draw.line(self.screen, target_color,
                            (target_screen_x, self.ground_y - 15),
                            (target_screen_x, self.ground_y + 5), 4)
@@ -379,7 +418,7 @@ class RealtimeCartPoleVisualizer:
             target_text = target_font.render(f"Target: {self.target_position:.2f}m", True, target_color)
             target_rect = target_text.get_rect()
             target_rect.centerx = target_screen_x
-            target_rect.y = self.ground_y + 10  # Moved below the ground line
+            target_rect.y = self.ground_y + 10
             
             bg_rect = target_rect.copy()
             bg_rect.inflate(10, 4)
@@ -402,8 +441,6 @@ class RealtimeCartPoleVisualizer:
         
         highlight_color = (200, 220, 255) if self.is_night else (150, 200, 255)
         pygame.draw.circle(self.screen, highlight_color, (knob_x - 3, knob_y - 3), 4)
-        
-        # Removed the "Target Position (meters)" title text as requested
     
     def draw_trajectory(self):
         if self.show_trajectory and len(self.position_history) > 1:
@@ -418,7 +455,6 @@ class RealtimeCartPoleVisualizer:
                 pygame.draw.lines(self.screen, trail_color, False, points, 2)
     
     def draw_top_tabs(self, current_time, cart_pos, pole_angle, cart_velocity=None, pole_velocity=None):
-        """Draw horizontal tabs at the top with state variables"""
         # Background for tabs
         tab_bg_color = (0, 0, 50) if self.is_night else (240, 240, 240)
         tab_surface = pygame.Surface((self.width, self.tab_height))
@@ -485,7 +521,7 @@ class RealtimeCartPoleVisualizer:
         cart_screen_x, cart_screen_y = self.draw_cart(cart_position)
         self.draw_pole(cart_screen_x, cart_screen_y, pole_angle)
         
-        # Draw top tabs instead of side info panel
+        # Draw top tabs
         self.draw_top_tabs(current_time, cart_position, pole_angle, cart_velocity, pole_velocity)
         
         if force_redraw:
@@ -505,4 +541,4 @@ class RealtimeCartPoleVisualizer:
         pygame.quit()
 
 # For backward compatibility
-# CartPoleVisualizer = RealtimeCartPoleVisualizer
+CartPoleVisualizer = RealtimeCartPoleVisualizer
